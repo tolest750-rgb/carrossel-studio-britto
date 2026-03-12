@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getKeys, addKey, removeKey, type GeminiKeyEntry } from "@/lib/api-keys";
+import { getKeys, addKey, removeKey, type GeminiKeyEntry, GEMINI_MODELS, getSelectedModel, setSelectedModel, type GeminiModelId } from "@/lib/api-keys";
 
 interface Props {
   open: boolean;
@@ -10,9 +10,13 @@ export function ApiKeyManager({ open, onClose }: Props) {
   const [keys, setKeys] = useState<GeminiKeyEntry[]>([]);
   const [name, setName] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState<GeminiModelId>(getSelectedModel());
 
   useEffect(() => {
-    if (open) setKeys(getKeys());
+    if (open) {
+      setKeys(getKeys());
+      setModel(getSelectedModel());
+    }
   }, [open]);
 
   if (!open) return null;
@@ -28,6 +32,11 @@ export function ApiKeyManager({ open, onClose }: Props) {
   const handleRemove = (id: string) => {
     removeKey(id);
     setKeys(getKeys());
+  };
+
+  const handleModelChange = (id: GeminiModelId) => {
+    setModel(id);
+    setSelectedModel(id);
   };
 
   const maskKey = (k: string) => k.slice(0, 8) + "••••••••" + k.slice(-4);
@@ -50,10 +59,45 @@ export function ApiKeyManager({ open, onClose }: Props) {
           </button>
         </div>
 
+        {/* Model Selector */}
+        <div className="px-4 py-3 border-b border-border2 bg-background/30">
+          <div className="font-mono text-[8px] tracking-[1.5px] uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
+            <span className="text-primary">◈</span> MODELO
+            <span className="flex-1 h-px bg-gradient-to-r from-border2 to-transparent" />
+          </div>
+          <div className="flex flex-col gap-1">
+            {GEMINI_MODELS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => handleModelChange(m.id)}
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-sm border text-left transition-all duration-200 ${
+                  model === m.id
+                    ? "bg-primary/10 border-primary/40 shadow-[0_0_8px_hsl(var(--primary)/0.1)]"
+                    : "bg-background border-border2 hover:border-primary/25"
+                }`}
+              >
+                <div
+                  className={`w-2 h-2 rounded-full shrink-0 transition-all ${
+                    model === m.id
+                      ? "bg-primary shadow-[0_0_6px_hsl(var(--primary))]"
+                      : "bg-border2"
+                  }`}
+                />
+                <div className="flex flex-col">
+                  <span className={`font-mono text-[10px] tracking-[0.5px] ${model === m.id ? "text-primary" : "text-foreground"}`}>
+                    {m.label}
+                  </span>
+                  <span className="font-mono text-[8px] text-muted-foreground">{m.desc}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Key List */}
-        <div className="px-4 py-3 max-h-[240px] overflow-y-auto">
+        <div className="px-4 py-3 max-h-[200px] overflow-y-auto">
           {keys.length === 0 ? (
-            <div className="text-center py-6">
+            <div className="text-center py-4">
               <div className="text-muted-foreground font-mono text-[10px] tracking-[1px]">
                 NENHUMA CHAVE CADASTRADA
               </div>
