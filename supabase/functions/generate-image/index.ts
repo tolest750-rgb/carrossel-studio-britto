@@ -14,6 +14,7 @@ const ok = (body: object) =>
 const IMAGE_MODELS = [
   "google/gemini-3.1-flash-image-preview",
   "google/gemini-3-pro-image-preview",
+  "google/gemini-2.5-flash-image",
 ];
 
 const MAX_RETRIES = 2;
@@ -38,13 +39,16 @@ function extractImageFromGatewayResponse(data: any): string | null {
     const msg = choice?.message;
     if (!msg) continue;
 
+    // 1. Check msg.images array
     if (msg.images?.length) {
       for (const img of msg.images) {
         if (img?.image_url?.url) return img.image_url.url;
         if (img?.url) return img.url;
+        if (img?.data) return `data:image/png;base64,${img.data}`;
       }
     }
 
+    // 2. Check msg.content as array
     if (Array.isArray(msg.content)) {
       for (const part of msg.content) {
         if (part?.type === "image_url" && part?.image_url?.url) return part.image_url.url;
@@ -52,9 +56,40 @@ function extractImageFromGatewayResponse(data: any): string | null {
         if (part?.type === "image" && part?.data) {
           return `data:image/png;base64,${part.data}`;
         }
+        // inline_data format (Gemini native)
+        if (part?.inline_data?.data) {
+          const mime = part.inline_data.mime_type || "image/png";
+          return `data:${mime};base64,${part.inline_data.data}`;
+        }
       }
     }
 
+    // 3. Check msg.content as plain object (non-array)
+    if (typeof msg.content === "object" && msg.content !== null && !Array.isArray(msg.content)) {
+      const c = msg.content as any;
+      if (c.image_url?.url) return c.image_url.url;
+      if (c.url) return c.url;
+      if (c.data && typeof c.data === "string") {
+        const mime = c.mime_type || "image/png";
+        return `data:${mime};base64,${c.data}`;
+      }
+      if (c.inline_data?.data) {
+        const mime = c.inline_data.mime_type || "image/png";
+        return `data:${mime};base64,${c.inline_data.data}`;
+      }
+      // Recursively check nested parts
+      if (Array.isArray(c.parts)) {
+        for (const part of c.parts) {
+          if (part?.inline_data?.data) {
+            const mime = part.inline_data.mime_type || "image/png";
+            return `data:${mime};base64,${part.inline_data.data}`;
+          }
+          if (part?.image_url?.url) return part.image_url.url;
+        }
+      }
+    }
+
+    // 4. Check msg.content as base64 string
     if (typeof msg.content === "string" && msg.content.startsWith("data:image")) {
       return msg.content;
     }
@@ -130,16 +165,22 @@ async function generateWithGateway(
         }
 
         const msg = data?.choices?.[0]?.message;
+        const rawContent = msg?.content;
+        let contentPreview = "";
+        try {
+          contentPreview = typeof rawContent === "string" ? rawContent.substring(0, 200) : JSON.stringify(rawContent)?.substring(0, 200);
+        } catch { contentPreview = "[unserializable]"; }
+
         console.warn(`[generate-image] No image extracted from ${model} (attempt ${attempt + 1}/${MAX_RETRIES}). Structure:`,
           JSON.stringify({
             hasChoices: !!data?.choices?.length,
             messageKeys: msg ? Object.keys(msg) : [],
             contentType: typeof msg?.content,
             contentIsArray: Array.isArray(msg?.content),
-            contentLength: Array.isArray(msg?.content) ? msg.content.length : (typeof msg?.content === "string" ? msg.content.length : 0),
             hasImages: !!msg?.images?.length,
             imagesCount: msg?.images?.length || 0,
-          })
+          }),
+          `\nContent preview: ${contentPreview}`
         );
 
         if (attempt < MAX_RETRIES - 1) { await sleep(1500); continue; }
