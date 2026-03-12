@@ -11,6 +11,11 @@ interface EdgeResult {
   rateLimited?: boolean;
 }
 
+export interface GeminiResult {
+  imageUrl: string | null;
+  finalPrompt: string;
+}
+
 const MAX_CLIENT_RETRIES = 3;
 
 function incrementTodayCount() {
@@ -35,7 +40,7 @@ async function callEdgeFunction(promptText: string, faceB64?: string): Promise<E
   return result.data as EdgeResult;
 }
 
-export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: string): Promise<string | null> {
+export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: string): Promise<GeminiResult> {
   const promptText = [
     sl.prompt.pos + VAR_HINTS[varIdx],
     "",
@@ -68,7 +73,7 @@ export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: st
 
     if (result.imageUrl) {
       incrementTodayCount();
-      return result.imageUrl;
+      return { imageUrl: result.imageUrl, finalPrompt: promptText };
     }
 
     if (!result.isRetryable || attempt === MAX_CLIENT_RETRIES) {

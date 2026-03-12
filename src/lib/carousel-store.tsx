@@ -48,6 +48,7 @@ interface CarouselState {
   slides: ProcessedSlide[];
   composedBlobs: Record<number, (Blob | null)[]>;
   varUrls: Record<string, string>;
+  varPrompts: Record<string, string>;
   varStatuses: Record<string, "idle" | "generating" | "done" | "error">;
   varErrors: Record<string, string>;
   slideStatuses: Record<number, "idle" | "processing" | "complete" | "error">;
@@ -115,8 +116,9 @@ async function generateAndCompose(
   faceB64: string,
   isFirstOrLast: boolean,
   titleStyle: TitleStyle,
-): Promise<{ blob: Blob; url: string }> {
-  const imgSrc = await callGemini(sl, varIdx, faceB64);
+): Promise<{ blob: Blob; url: string; finalPrompt: string }> {
+  const result = await callGemini(sl, varIdx, faceB64);
+  const imgSrc = result.imageUrl;
 
   let aiLayout: AILayout | undefined;
   if (imgSrc) {
@@ -144,7 +146,7 @@ async function generateAndCompose(
 
   const blob = await composeSlide(imgSrc, sl, faceB64, aiLayout, isFirstOrLast);
   const url = URL.createObjectURL(blob);
-  return { blob, url };
+  return { blob, url, finalPrompt: result.finalPrompt };
 }
 
 export function CarouselProvider({ children }: { children: React.ReactNode }) {
@@ -161,6 +163,7 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
   const [slides, setSlides] = useState<ProcessedSlide[]>([]);
   const [composedBlobs, setComposedBlobs] = useState<Record<number, (Blob | null)[]>>({});
   const [varUrls, setVarUrls] = useState<Record<string, string>>({});
+  const [varPrompts, setVarPrompts] = useState<Record<string, string>>({});
   const [varStatuses, setVarStatuses] = useState<Record<string, "idle" | "generating" | "done" | "error">>({});
   const [slideStatuses, setSlideStatuses] = useState<Record<number, "idle" | "processing" | "complete" | "error">>({});
   const [varErrors, setVarErrors] = useState<Record<string, string>>({});
@@ -310,6 +313,7 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
     setVarUrls({});
     setVarStatuses({});
     setVarErrors({});
+    setVarPrompts({});
     setSlideStatuses({});
     setSlideSteps({});
     setIsGenerating(true);
@@ -333,10 +337,11 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
 
       try {
         try {
-          const { blob, url } = await generateAndCompose(processedSlides[i], 0, faceB64Ref.current, isFirstOrLast, titleStyle);
+          const { blob, url, finalPrompt } = await generateAndCompose(processedSlides[i], 0, faceB64Ref.current, isFirstOrLast, titleStyle);
           if (stopRef.current) break;
           newBlobs[i][0] = blob;
           setVarUrl(i, 0, url);
+          setVarPrompts((p) => ({ ...p, [`${i}_0`]: finalPrompt }));
           setVarStatus(i, 0, "done");
           setComposedBlobs((prev) => ({ ...prev, [i]: [...newBlobs[i]] }));
         } catch (err: unknown) {
@@ -365,8 +370,9 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
     const titleStyle = (sl as any).titleStyle ?? "default";
     setVarStatus(slideIdx, varIdx, "generating");
     try {
-      const { blob, url } = await generateAndCompose(sl, varIdx, faceB64Ref.current, isFirstOrLast, titleStyle);
+      const { blob, url, finalPrompt } = await generateAndCompose(sl, varIdx, faceB64Ref.current, isFirstOrLast, titleStyle);
       setVarUrl(slideIdx, varIdx, url);
+      setVarPrompts((p) => ({ ...p, [`${slideIdx}_${varIdx}`]: finalPrompt }));
       setVarStatus(slideIdx, varIdx, "done");
       setComposedBlobs((prev) => {
         const arr = [...(prev[slideIdx] || new Array(4).fill(null))];
@@ -384,7 +390,7 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
 
   const value: CarouselState & CarouselActions = {
     faceB64, faceDataUrl, faceName, layoutRefDataUrl, layoutRefName, slideSteps,
-    style, light, fmt, res, rawText, slides, composedBlobs, varUrls, varStatuses,
+    style, light, fmt, res, rawText, slides, composedBlobs, varUrls, varPrompts, varStatuses,
     varErrors, slideStatuses, isGenerating, isStopping, progress, generationComplete,
     history, facePresets, layoutPresets,
     setFace, setLayoutRef, setStyle, setLight, setFmt, setRes, setRawText,
