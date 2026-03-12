@@ -21,27 +21,32 @@ export interface DiscoveredModel {
   description: string;
 }
 
-// Preferred models for image generation, in priority order
+// Valid image generation models (June 2026)
 export const IMAGE_MODEL_PRIORITY = [
+  "gemini-2.5-flash-preview-image-generation",
   "gemini-2.0-flash-preview-image-generation",
   "gemini-2.0-flash-exp",
-  "gemini-2.0-flash",
+];
+
+// Legacy models that should be migrated
+const LEGACY_MODELS = [
+  "gemini-2.0-flash-exp",
+  "gemini-2.0-flash-preview-image-generation",
   "gemini-1.5-flash",
   "gemini-1.5-pro",
   "gemini-2.5-flash-preview-05-20",
   "gemini-2.5-pro-preview-06-05",
+  "gemini-2.0-flash",
 ];
 
-// Legacy models to migrate away from
-const LEGACY_MODELS = ["gemini-2.0-flash-exp"];
+const DEFAULT_MODEL = "gemini-2.5-flash-preview-image-generation";
 
 export function getSelectedModel(): string {
   const stored = localStorage.getItem(MODEL_KEY);
   // Migrate legacy model
   if (!stored || LEGACY_MODELS.includes(stored)) {
-    const defaultModel = "gemini-2.0-flash-preview-image-generation";
-    localStorage.setItem(MODEL_KEY, defaultModel);
-    return defaultModel;
+    localStorage.setItem(MODEL_KEY, DEFAULT_MODEL);
+    return DEFAULT_MODEL;
   }
   return stored;
 }
@@ -97,7 +102,6 @@ export function removeKey(id: string): void {
 
 export function getNextKey(excludeIds: string[]): GeminiKeyEntry | null {
   const keys = getKeys();
-  // Skip keys marked as expired
   return keys.find((k) => !excludeIds.includes(k.id) && k.status !== "expired") ?? null;
 }
 
@@ -134,13 +138,10 @@ export function resetAllFailCounts(): void {
 /** Pick the best model for a key given user preference */
 export function pickBestModel(selectedModel: string, availableModels?: string[]): string {
   if (!availableModels || availableModels.length === 0) return selectedModel;
-  // If user's selected model is available, use it
   if (availableModels.includes(selectedModel)) return selectedModel;
-  // Otherwise, pick from priority list
   for (const m of IMAGE_MODEL_PRIORITY) {
     if (availableModels.includes(m)) return m;
   }
-  // Fallback to first available
   return availableModels[0] || selectedModel;
 }
 

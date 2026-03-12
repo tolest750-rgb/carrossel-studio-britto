@@ -328,23 +328,23 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
       const titleStyle = (processedSlides[i] as any).titleStyle ?? "default";
 
       try {
-        const varJobs = [0, 1, 2, 3].map((v) =>
-          generateAndCompose(processedSlides[i], v, faceB64Ref.current, isFirstOrLast, titleStyle)
-            .then(({ blob, url }) => {
-              if (stopRef.current) return;
-              newBlobs[i][v] = blob;
-              setVarUrl(i, v, url);
-              setVarStatus(i, v, "done");
-              setComposedBlobs((prev) => ({ ...prev, [i]: [...newBlobs[i]] }));
-            })
-            .catch((err: unknown) => {
-              const msg = err instanceof Error ? err.message : String(err);
-              console.error(`[slide ${i} var ${v}]`, msg);
-              setVarErrors((p) => ({ ...p, [`${i}_${v}`]: msg }));
-              setVarStatus(i, v, "error");
-            }),
-        );
-        await Promise.all(varJobs);
+        // Sequential generation: one variation at a time to avoid rate limits
+        for (const v of [0, 1, 2, 3]) {
+          if (stopRef.current) break;
+          try {
+            const { blob, url } = await generateAndCompose(processedSlides[i], v, faceB64Ref.current, isFirstOrLast, titleStyle);
+            if (stopRef.current) break;
+            newBlobs[i][v] = blob;
+            setVarUrl(i, v, url);
+            setVarStatus(i, v, "done");
+            setComposedBlobs((prev) => ({ ...prev, [i]: [...newBlobs[i]] }));
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(`[slide ${i} var ${v}]`, msg);
+            setVarErrors((p) => ({ ...p, [`${i}_${v}`]: msg }));
+            setVarStatus(i, v, "error");
+          }
+        }
         if (!stopRef.current) setSlideStatus(i, "complete");
       } catch {
         setSlideStatus(i, "error");

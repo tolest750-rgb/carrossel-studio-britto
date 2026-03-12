@@ -9,6 +9,8 @@ const corsHeaders = {
 const ok = (body: object) =>
   new Response(JSON.stringify(body), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+const DEFAULT_MODEL = "gemini-2.5-flash-preview-image-generation";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -20,7 +22,7 @@ serve(async (req) => {
       return ok({ error: "Invalid request body" });
     }
 
-    // ── ACTION: list-models — discover available models for a key ──
+    // ── ACTION: list-models ──
     if (body.action === "list-models") {
       const apiKey = body.geminiApiKey;
       if (!apiKey) return ok({ error: "Missing geminiApiKey" });
@@ -32,14 +34,12 @@ serve(async (req) => {
         if (!res.ok) {
           const text = await res.text();
           console.error("List models error:", res.status, text);
-          // Classify the error
           if (text.includes("API_KEY_INVALID") || text.includes("API key expired")) {
             return ok({ error: "API_KEY_INVALID", errorType: "API_KEY_INVALID" });
           }
           return ok({ error: `Failed to list models: ${res.status}`, errorType: "UNKNOWN" });
         }
         const data = await res.json();
-        // Filter models that support generateContent and image output
         const imageModels = (data.models || [])
           .filter((m: any) => {
             const methods = m.supportedGenerationMethods || [];
@@ -67,12 +67,12 @@ serve(async (req) => {
 
     if (!prompt) return ok({ error: "Missing prompt" });
 
-    // ── USER KEY PATH: call Google Gemini API directly ──
+    // ── USER KEY PATH ──
     if (geminiApiKey) {
-      return await callGoogleGemini(prompt, faceB64, geminiApiKey, geminiModel || "gemini-2.0-flash-preview-image-generation");
+      return await callGoogleGemini(prompt, faceB64, geminiApiKey, geminiModel || DEFAULT_MODEL);
     }
 
-    // ── DEFAULT PATH: use Lovable AI Gateway ──
+    // ── DEFAULT PATH: Lovable AI Gateway ──
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) return ok({ error: "LOVABLE_API_KEY not configured" });
 
@@ -148,12 +148,13 @@ async function callGoogleGemini(prompt: string, faceB64: string | undefined, api
     const text = await response.text();
     console.error("Google Gemini error:", status, text);
 
-    // Classify error type for smart rotation
     let errorType = "UNKNOWN";
     if (text.includes("API_KEY_INVALID") || text.includes("API key expired")) {
       errorType = "API_KEY_INVALID";
     } else if (status === 404 || text.includes("NOT_FOUND")) {
       errorType = "MODEL_NOT_FOUND";
+    } else if (text.includes("does not support") && text.includes("response modalities")) {
+      errorType = "MODEL_NOT_FOUND"; // treat as model issue so client tries next model
     } else if (status === 429 || text.includes("RESOURCE_EXHAUSTED")) {
       errorType = "RESOURCE_EXHAUSTED";
     } else if (status === 403) {
@@ -173,17 +174,25 @@ async function callGoogleGemini(prompt: string, faceB64: string | undefined, api
   }
 
   const candidates = data.candidates;
-  if (!candidates?.length) return ok({ error: "No candidates in Gemini response", isRetryable: true });
+  if (!candidates?.length) {
+    // Check for safety block
+    if (data.promptFeedback?.blockReason) {
+      return ok({ error: `Blocked: ${data.promptFeedback.blockReason}`, isRetryable: false, errorType: "SAFETY_BLOCKED" });
+    }
+    return ok({ error: "No candidates in Gemini response", isRetryable: true });
+  }
 
-  const contentParts = candidates[0]?.content?.parts;
-  if (!contentParts?.length) return ok({ error: "No parts in Gemini response", isRetryable: true });
+  // Search all candidates for an image
+  for (const candidate of candidates) {
+    const contentParts = candidate?.content?.parts;
+    if (!contentParts?.length) continue;
+    const imagePart = contentParts.find((p: any) => p.inline_data?.mime_type?.startsWith("image/"));
+    if (imagePart) {
+      const b64 = imagePart.inline_data.data;
+      const mime = imagePart.inline_data.mime_type;
+      return ok({ imageUrl: `data:${mime};base64,${b64}` });
+    }
+  }
 
-  const imagePart = contentParts.find((p: any) => p.inline_data?.mime_type?.startsWith("image/"));
-  if (!imagePart) return ok({ error: "No image in Gemini response", isRetryable: true });
-
-  const b64 = imagePart.inline_data.data;
-  const mime = imagePart.inline_data.mime_type;
-  const imageUrl = `data:${mime};base64,${b64}`;
-
-  return ok({ imageUrl });
+  return ok({ error: "No image in Gemini response", isRetryable: true });
 }
