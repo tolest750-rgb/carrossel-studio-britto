@@ -313,6 +313,7 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
     setVarUrls({});
     setVarStatuses({});
     setVarErrors({});
+    setVarPrompts({});
     setSlideStatuses({});
     setSlideSteps({});
     setIsGenerating(true);
