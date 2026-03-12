@@ -38,9 +38,7 @@ function getModelFallbacks(selectedModel: string): string[] {
 }
 
 export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: string): Promise<string | null> {
-  if (varIdx > 0) {
-    await new Promise((r) => setTimeout(r, varIdx * 3000));
-  }
+  // No artificial delay needed - generation is now sequential
 
   const promptText = [
     sl.prompt.pos + VAR_HINTS[varIdx],
