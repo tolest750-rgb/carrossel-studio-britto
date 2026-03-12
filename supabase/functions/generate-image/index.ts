@@ -165,16 +165,22 @@ async function generateWithGateway(
         }
 
         const msg = data?.choices?.[0]?.message;
+        const rawContent = msg?.content;
+        let contentPreview = "";
+        try {
+          contentPreview = typeof rawContent === "string" ? rawContent.substring(0, 200) : JSON.stringify(rawContent)?.substring(0, 200);
+        } catch { contentPreview = "[unserializable]"; }
+
         console.warn(`[generate-image] No image extracted from ${model} (attempt ${attempt + 1}/${MAX_RETRIES}). Structure:`,
           JSON.stringify({
             hasChoices: !!data?.choices?.length,
             messageKeys: msg ? Object.keys(msg) : [],
             contentType: typeof msg?.content,
             contentIsArray: Array.isArray(msg?.content),
-            contentLength: Array.isArray(msg?.content) ? msg.content.length : (typeof msg?.content === "string" ? msg.content.length : 0),
             hasImages: !!msg?.images?.length,
             imagesCount: msg?.images?.length || 0,
-          })
+          }),
+          `\nContent preview: ${contentPreview}`
         );
 
         if (attempt < MAX_RETRIES - 1) { await sleep(1500); continue; }
