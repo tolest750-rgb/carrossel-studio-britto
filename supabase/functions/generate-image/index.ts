@@ -9,11 +9,10 @@ const corsHeaders = {
 const ok = (body: object) =>
   new Response(JSON.stringify(body), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-// Models to try in order via Lovable AI Gateway
 const IMAGE_MODELS = [
+  "google/gemini-3.1-flash-image-preview",
   "google/gemini-2.5-flash-image",
   "google/gemini-3-pro-image-preview",
-  "google/gemini-3.1-flash-image-preview",
 ];
 
 const MAX_RETRIES = 3;
@@ -25,14 +24,12 @@ async function sleep(ms: number) {
 function extractRetryDelay(text: string): number {
   const match = text.match(/retry\s*(?:in|after)\s*(\d+(?:\.\d+)?)\s*s/i);
   if (match) return Math.ceil(parseFloat(match[1])) * 1000;
-  // Also check retryDelay JSON field
   const jsonMatch = text.match(/"retryDelay"\s*:\s*"(\d+)s?"/);
   if (jsonMatch) return parseInt(jsonMatch[1]) * 1000;
-  return 5000; // default 5s
+  return 5000;
 }
 
 function extractImageFromGatewayResponse(data: any): string | null {
-  // Try standard OpenAI-compatible image response
   const choices = data?.choices;
   if (!choices?.length) return null;
 
@@ -40,7 +37,6 @@ function extractImageFromGatewayResponse(data: any): string | null {
     const msg = choice?.message;
     if (!msg) continue;
 
-    // Check images array (Lovable gateway format)
     if (msg.images?.length) {
       for (const img of msg.images) {
         if (img?.image_url?.url) return img.image_url.url;
@@ -48,19 +44,16 @@ function extractImageFromGatewayResponse(data: any): string | null {
       }
     }
 
-    // Check content array with image parts
     if (Array.isArray(msg.content)) {
       for (const part of msg.content) {
         if (part?.type === "image_url" && part?.image_url?.url) return part.image_url.url;
         if (part?.type === "image" && part?.url) return part.url;
-        // Base64 inline
         if (part?.type === "image" && part?.data) {
           return `data:image/png;base64,${part.data}`;
         }
       }
     }
 
-    // Check inline_data in content (Gemini native format wrapped)
     if (typeof msg.content === "string" && msg.content.startsWith("data:image")) {
       return msg.content;
     }
@@ -103,7 +96,6 @@ async function generateWithGateway(
             await sleep(delay);
             continue;
           }
-          // Last attempt on this model, try next model
           break;
         }
 
@@ -114,13 +106,13 @@ async function generateWithGateway(
         if (!response.ok) {
           const text = await response.text();
           console.error(`[generate-image] ${model} error ${response.status}:`, text.substring(0, 300));
-          // Try next model
           break;
         }
 
         const rawText = await response.text();
         if (!rawText) {
           console.error(`[generate-image] Empty response from ${model}`);
+          if (attempt < MAX_RETRIES - 1) { await sleep(2000); continue; }
           break;
         }
 
@@ -129,6 +121,7 @@ async function generateWithGateway(
           data = JSON.parse(rawText);
         } catch {
           console.error(`[generate-image] Malformed JSON from ${model}:`, rawText.substring(0, 200));
+          if (attempt < MAX_RETRIES - 1) { await sleep(2000); continue; }
           break;
         }
 
@@ -138,12 +131,31 @@ async function generateWithGateway(
           return { imageUrl };
         }
 
-        console.warn(`[generate-image] No image extracted from ${model} response, trying next model`);
-        break; // try next model
+        // Log response structure for debugging
+        const msg = data?.choices?.[0]?.message;
+        console.warn(`[generate-image] No image extracted from ${model} (attempt ${attempt + 1}/${MAX_RETRIES}). Structure:`,
+          JSON.stringify({
+            hasChoices: !!data?.choices?.length,
+            messageKeys: msg ? Object.keys(msg) : [],
+            contentType: typeof msg?.content,
+            contentIsArray: Array.isArray(msg?.content),
+            contentLength: Array.isArray(msg?.content) ? msg.content.length : (typeof msg?.content === "string" ? msg.content.length : 0),
+            hasImages: !!msg?.images?.length,
+            imagesCount: msg?.images?.length || 0,
+          })
+        );
+
+        if (attempt < MAX_RETRIES - 1) {
+          await sleep(2000);
+          continue;
+        }
+        // All retries exhausted for this model, try next
+        break;
 
       } catch (e) {
         console.error(`[generate-image] Network error on ${model}:`, e);
-        break; // try next model
+        if (attempt < MAX_RETRIES - 1) { await sleep(2000); continue; }
+        break;
       }
     }
   }

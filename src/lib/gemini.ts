@@ -8,7 +8,7 @@ interface EdgeResult {
   isRetryable?: boolean;
 }
 
-const MAX_CLIENT_RETRIES = 2;
+const MAX_CLIENT_RETRIES = 3;
 
 async function callEdgeFunction(promptText: string, faceB64?: string): Promise<EdgeResult> {
   const body: Record<string, string | undefined> = { prompt: promptText, faceB64 };
