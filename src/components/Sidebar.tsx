@@ -101,6 +101,8 @@ export function Sidebar() {
   const [showLayoutPresets, setShowLayoutPresets] = useState(true);
   const [textMode, setTextMode] = useState<"edit" | "preview">("edit");
   const [copied, setCopied] = useState(false);
+  const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem("googleApiKey") || "");
+  const [showKey, setShowKey] = useState(false);
 
   // ── Text helpers ────────────────────────────────────────────
   const canGenerate = rawText.trim().length > 0 && !isGenerating;
@@ -140,6 +142,55 @@ export function Sidebar() {
 
       {activeTab === "config" && (
         <>
+          {/* ── Google API Key ──────────────────────────── */}
+          <div className="p-4 border-b border-border2">
+            <div className="font-mono text-[9px] tracking-[2.5px] uppercase text-muted-foreground mb-2 flex items-center gap-2">
+              <span className="text-primary" style={{ textShadow: "0 0 6px hsl(var(--primary))" }}>🔑</span>
+              GOOGLE API KEY
+              <span className="flex-1 h-px bg-gradient-to-r from-border2 to-transparent" />
+            </div>
+            <div className="flex gap-1.5 mb-1.5">
+              <input
+                type={showKey ? "text" : "password"}
+                value={googleApiKey}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setGoogleApiKey(val);
+                  if (val.trim()) localStorage.setItem("googleApiKey", val.trim());
+                  else localStorage.removeItem("googleApiKey");
+                }}
+                placeholder="Cole sua API Key aqui..."
+                className="flex-1 bg-card border border-border2 rounded-sm font-mono text-[10px] px-2 py-1.5 text-foreground outline-none focus:border-primary placeholder:text-muted-foreground"
+              />
+              <button
+                onClick={() => setShowKey((v) => !v)}
+                className="bg-card border border-border2 rounded-sm font-mono text-[9px] px-2 py-1 text-muted-foreground hover:text-primary hover:border-primary transition-colors"
+              >
+                {showKey ? "◉" : "◎"}
+              </button>
+            </div>
+            {googleApiKey ? (
+              <div className="flex items-center gap-1.5">
+                <span className="font-mono text-[8px] text-primary tracking-[1px]">🍌 Nano Banana Pro · Grátis</span>
+                <button
+                  onClick={() => { setGoogleApiKey(""); localStorage.removeItem("googleApiKey"); }}
+                  className="font-mono text-[7px] text-muted-foreground hover:text-destructive transition-colors ml-auto"
+                >
+                  REMOVER
+                </button>
+              </div>
+            ) : (
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[8px] text-muted-foreground hover:text-primary transition-colors underline"
+              >
+                Obter key gratuita → aistudio.google.com
+              </a>
+            )}
+          </div>
+
           {/* ── Face Upload + Presets ───────────────────────── */}
           <div className="border-b border-border2">
             <FaceUpload />
