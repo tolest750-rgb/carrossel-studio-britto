@@ -370,8 +370,9 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
     const titleStyle = (sl as any).titleStyle ?? "default";
     setVarStatus(slideIdx, varIdx, "generating");
     try {
-      const { blob, url } = await generateAndCompose(sl, varIdx, faceB64Ref.current, isFirstOrLast, titleStyle);
+      const { blob, url, finalPrompt } = await generateAndCompose(sl, varIdx, faceB64Ref.current, isFirstOrLast, titleStyle);
       setVarUrl(slideIdx, varIdx, url);
+      setVarPrompts((p) => ({ ...p, [`${slideIdx}_${varIdx}`]: finalPrompt }));
       setVarStatus(slideIdx, varIdx, "done");
       setComposedBlobs((prev) => {
         const arr = [...(prev[slideIdx] || new Array(4).fill(null))];
