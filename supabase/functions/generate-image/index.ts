@@ -10,14 +10,32 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prompt, faceB64 } = await req.json();
+    let prompt: string;
+    let faceB64: string | undefined;
+
+    try {
+      const body = await req.json();
+      prompt = body.prompt;
+      faceB64 = body.faceB64;
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid request body" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!prompt) {
+      return new Response(
+        JSON.stringify({ error: "Missing prompt" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Build message content
     const content: any[] = [{ type: "text", text: prompt }];
 
-    // If face reference provided, attach as image
     if (faceB64) {
       content.push({
         type: "image_url",
@@ -62,7 +80,26 @@ serve(async (req) => {
       );
     }
 
-    const data = await response.json();
+    // Defensive: read as text first, then parse
+    const rawText = await response.text();
+    if (!rawText) {
+      return new Response(
+        JSON.stringify({ error: "Empty response from AI gateway" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      console.error("Failed to parse AI gateway response:", rawText.substring(0, 200));
+      return new Response(
+        JSON.stringify({ error: "Malformed response from AI gateway" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
     if (!imageUrl) {
@@ -80,7 +117,7 @@ serve(async (req) => {
     console.error("generate-image error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
