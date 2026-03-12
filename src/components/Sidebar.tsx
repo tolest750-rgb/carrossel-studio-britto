@@ -109,7 +109,7 @@ export function Sidebar() {
   });
 
   // Listen for usage updates from gemini.ts
-  useState(() => {
+  useEffect(() => {
     const handler = () => {
       const stored = localStorage.getItem("ai_usage");
       if (!stored) return;
@@ -118,7 +118,7 @@ export function Sidebar() {
     };
     window.addEventListener("ai_usage_updated", handler);
     return () => window.removeEventListener("ai_usage_updated", handler);
-  });
+  }, []);
 
   // ── Text helpers ────────────────────────────────────────────
   const canGenerate = rawText.trim().length > 0 && !isGenerating;
