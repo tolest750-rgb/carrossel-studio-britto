@@ -6,7 +6,8 @@ export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const [showKeys, setShowKeys] = useState(false);
   const [activeKeyName, setActiveKeyNameState] = useState("");
   const keyCount = getKeys().length;
-  const selectedModel = GEMINI_MODELS.find((m) => m.id === getSelectedModel());
+  const selectedModelId = getSelectedModel();
+  const selectedModelLabel = selectedModelId.replace("gemini-", "").replace("-preview-image-generation", " IMG").replace("-preview-", " ").substring(0, 16);
 
   useEffect(() => {
     const update = () => setActiveKeyNameState(getActiveKeyName());
