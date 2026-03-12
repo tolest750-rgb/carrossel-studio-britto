@@ -4,17 +4,24 @@ import { Sidebar } from "@/components/Sidebar";
 import { OutputPanel } from "@/components/OutputPanel";
 import { Lightbox } from "@/components/Lightbox";
 import { CarouselProvider } from "@/lib/carousel-store";
+import { ApiKeyManager } from "@/components/ApiKeyManager";
 
 function CarouselStudio() {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showApiKeys, setShowApiKeys] = useState(false);
 
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setLightboxSrc(null);
     };
+    const handleOpenKeys = () => setShowApiKeys(true);
     document.addEventListener("keydown", handleKeydown);
-    return () => document.removeEventListener("keydown", handleKeydown);
+    document.addEventListener("open-api-key-manager", handleOpenKeys);
+    return () => {
+      document.removeEventListener("keydown", handleKeydown);
+      document.removeEventListener("open-api-key-manager", handleOpenKeys);
+    };
   }, []);
 
   return (
@@ -41,6 +48,7 @@ function CarouselStudio() {
         <OutputPanel onImageClick={setLightboxSrc} />
       </div>
       <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      <ApiKeyManager open={showApiKeys} onClose={() => setShowApiKeys(false)} />
     </CarouselProvider>
   );
 }

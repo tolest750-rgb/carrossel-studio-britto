@@ -214,12 +214,23 @@ export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVa
                               {varErrors[key].length > 180 ? "…" : ""}
                             </span>
                           )}
-                          <button
-                            onClick={() => regenVar(index, v)}
-                            className="font-mono text-[8px] tracking-[1px] border border-destructive/40 text-destructive rounded-sm px-2.5 py-1 hover:bg-destructive/10 transition-colors mt-1"
-                          >
-                            ↺ TENTAR NOVAMENTE
-                          </button>
+                          {varErrors?.[key]?.includes("Todas as chaves") ? (
+                            <button
+                              onClick={() => {
+                                document.dispatchEvent(new CustomEvent("open-api-key-manager"));
+                              }}
+                              className="font-mono text-[8px] tracking-[1px] border border-accent/40 text-accent rounded-sm px-2.5 py-1 hover:bg-accent/10 transition-colors mt-1"
+                            >
+                              ⚡ ADICIONAR CHAVE API
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => regenVar(index, v)}
+                              className="font-mono text-[8px] tracking-[1px] border border-destructive/40 text-destructive rounded-sm px-2.5 py-1 hover:bg-destructive/10 transition-colors mt-1"
+                            >
+                              ↺ TENTAR NOVAMENTE
+                            </button>
+                          )}
                         </div>
                       ) : url ? (
                         <>
