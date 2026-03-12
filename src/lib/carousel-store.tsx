@@ -48,6 +48,7 @@ interface CarouselState {
   slides: ProcessedSlide[];
   composedBlobs: Record<number, (Blob | null)[]>;
   varUrls: Record<string, string>;
+  varPrompts: Record<string, string>;
   varStatuses: Record<string, "idle" | "generating" | "done" | "error">;
   varErrors: Record<string, string>;
   slideStatuses: Record<number, "idle" | "processing" | "complete" | "error">;
