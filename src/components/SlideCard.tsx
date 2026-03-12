@@ -368,6 +368,16 @@ export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVa
               text={slide.prompt.neg}
               textClass="text-[#7a3a3a]"
             />
+            {/* Final Prompt Sent */}
+            {varPrompts[`${index}_0`] && (
+              <PromptBlock
+                label="PROMPT FINAL ENVIADO"
+                tag="AI GATEWAY"
+                tagClass="bg-accent/[0.07] text-accent border-accent/20"
+                text={varPrompts[`${index}_0`]}
+                textClass="text-[#5a6a8a] hover:text-[#7a8aaa]"
+              />
+            )}
           </div>
         </div>
       )}
