@@ -115,8 +115,9 @@ async function generateAndCompose(
   faceB64: string,
   isFirstOrLast: boolean,
   titleStyle: TitleStyle,
-): Promise<{ blob: Blob; url: string }> {
-  const imgSrc = await callGemini(sl, varIdx, faceB64);
+): Promise<{ blob: Blob; url: string; finalPrompt: string }> {
+  const result = await callGemini(sl, varIdx, faceB64);
+  const imgSrc = result.imageUrl;
 
   let aiLayout: AILayout | undefined;
   if (imgSrc) {
@@ -144,7 +145,7 @@ async function generateAndCompose(
 
   const blob = await composeSlide(imgSrc, sl, faceB64, aiLayout, isFirstOrLast);
   const url = URL.createObjectURL(blob);
-  return { blob, url };
+  return { blob, url, finalPrompt: result.finalPrompt };
 }
 
 export function CarouselProvider({ children }: { children: React.ReactNode }) {
