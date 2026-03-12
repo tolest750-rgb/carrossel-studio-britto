@@ -329,27 +329,36 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
       setProgress({ done: i, total: totalSlides });
       setSlideStatus(i, "processing");
       newBlobs[i] = new Array(4).fill(null);
-      // Generate only 1 variation by default
-      setVarStatus(i, 0, "generating");
-
       const isFirstOrLast = i === 0 || i === totalSlides - 1;
       const titleStyle = (processedSlides[i] as any).titleStyle ?? "default";
 
+      // Generate all 4 variations simultaneously
+      [0, 1, 2, 3].forEach((v) => setVarStatus(i, v, "generating"));
+
       try {
-        try {
-          const { blob, url, finalPrompt } = await generateAndCompose(processedSlides[i], 0, faceB64Ref.current, isFirstOrLast, titleStyle);
-          if (stopRef.current) break;
-          newBlobs[i][0] = blob;
-          setVarUrl(i, 0, url);
-          setVarPrompts((p) => ({ ...p, [`${i}_0`]: finalPrompt }));
-          setVarStatus(i, 0, "done");
-          setComposedBlobs((prev) => ({ ...prev, [i]: [...newBlobs[i]] }));
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error(`[slide ${i} var 0]`, msg);
-          setVarErrors((p) => ({ ...p, [`${i}_0`]: msg }));
-          setVarStatus(i, 0, "error");
+        const results = await Promise.allSettled(
+          [0, 1, 2, 3].map((varIdx) =>
+            generateAndCompose(processedSlides[i], varIdx, faceB64Ref.current, isFirstOrLast, titleStyle)
+          )
+        );
+
+        if (stopRef.current) break;
+
+        for (let v = 0; v < 4; v++) {
+          const r = results[v];
+          if (r.status === "fulfilled") {
+            newBlobs[i][v] = r.value.blob;
+            setVarUrl(i, v, r.value.url);
+            setVarPrompts((p) => ({ ...p, [`${i}_${v}`]: r.value.finalPrompt }));
+            setVarStatus(i, v, "done");
+          } else {
+            const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+            console.error(`[slide ${i} var ${v}]`, msg);
+            setVarErrors((p) => ({ ...p, [`${i}_${v}`]: msg }));
+            setVarStatus(i, v, "error");
+          }
         }
+        setComposedBlobs((prev) => ({ ...prev, [i]: [...newBlobs[i]] }));
         if (!stopRef.current) setSlideStatus(i, "complete");
       } catch {
         setSlideStatus(i, "error");
