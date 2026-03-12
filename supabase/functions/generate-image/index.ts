@@ -12,8 +12,8 @@ const ok = (body: object) =>
 // ── Lovable AI Gateway ───────────────────────────────────────
 
 const IMAGE_MODELS = [
+  "google/gemini-3.1-flash-image-preview",
   "google/gemini-3-pro-image-preview",
-  "google/gemini-2.5-flash-image",
 ];
 
 const MAX_RETRIES = 2;
