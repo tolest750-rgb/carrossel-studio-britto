@@ -48,6 +48,7 @@ function CarouselStudio() {
         <OutputPanel onImageClick={setLightboxSrc} />
       </div>
       <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      <ApiKeyManager open={showApiKeys} onClose={() => setShowApiKeys(false)} />
     </CarouselProvider>
   );
 }
