@@ -39,13 +39,16 @@ function extractImageFromGatewayResponse(data: any): string | null {
     const msg = choice?.message;
     if (!msg) continue;
 
+    // 1. Check msg.images array
     if (msg.images?.length) {
       for (const img of msg.images) {
         if (img?.image_url?.url) return img.image_url.url;
         if (img?.url) return img.url;
+        if (img?.data) return `data:image/png;base64,${img.data}`;
       }
     }
 
+    // 2. Check msg.content as array
     if (Array.isArray(msg.content)) {
       for (const part of msg.content) {
         if (part?.type === "image_url" && part?.image_url?.url) return part.image_url.url;
@@ -53,9 +56,40 @@ function extractImageFromGatewayResponse(data: any): string | null {
         if (part?.type === "image" && part?.data) {
           return `data:image/png;base64,${part.data}`;
         }
+        // inline_data format (Gemini native)
+        if (part?.inline_data?.data) {
+          const mime = part.inline_data.mime_type || "image/png";
+          return `data:${mime};base64,${part.inline_data.data}`;
+        }
       }
     }
 
+    // 3. Check msg.content as plain object (non-array)
+    if (typeof msg.content === "object" && msg.content !== null && !Array.isArray(msg.content)) {
+      const c = msg.content as any;
+      if (c.image_url?.url) return c.image_url.url;
+      if (c.url) return c.url;
+      if (c.data && typeof c.data === "string") {
+        const mime = c.mime_type || "image/png";
+        return `data:${mime};base64,${c.data}`;
+      }
+      if (c.inline_data?.data) {
+        const mime = c.inline_data.mime_type || "image/png";
+        return `data:${mime};base64,${c.inline_data.data}`;
+      }
+      // Recursively check nested parts
+      if (Array.isArray(c.parts)) {
+        for (const part of c.parts) {
+          if (part?.inline_data?.data) {
+            const mime = part.inline_data.mime_type || "image/png";
+            return `data:${mime};base64,${part.inline_data.data}`;
+          }
+          if (part?.image_url?.url) return part.image_url.url;
+        }
+      }
+    }
+
+    // 4. Check msg.content as base64 string
     if (typeof msg.content === "string" && msg.content.startsWith("data:image")) {
       return msg.content;
     }
