@@ -337,10 +337,11 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
 
       try {
         try {
-          const { blob, url } = await generateAndCompose(processedSlides[i], 0, faceB64Ref.current, isFirstOrLast, titleStyle);
+          const { blob, url, finalPrompt } = await generateAndCompose(processedSlides[i], 0, faceB64Ref.current, isFirstOrLast, titleStyle);
           if (stopRef.current) break;
           newBlobs[i][0] = blob;
           setVarUrl(i, 0, url);
+          setVarPrompts((p) => ({ ...p, [`${i}_0`]: finalPrompt }));
           setVarStatus(i, 0, "done");
           setComposedBlobs((prev) => ({ ...prev, [i]: [...newBlobs[i]] }));
         } catch (err: unknown) {
