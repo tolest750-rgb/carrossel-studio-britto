@@ -1,10 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ApiKeyManager } from "./ApiKeyManager";
-import { getKeys } from "@/lib/api-keys";
+import { getKeys, getActiveKeyName, getSelectedModel, GEMINI_MODELS } from "@/lib/api-keys";
 
 export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const [showKeys, setShowKeys] = useState(false);
+  const [activeKeyName, setActiveKeyNameState] = useState("");
   const keyCount = getKeys().length;
+  const selectedModel = GEMINI_MODELS.find((m) => m.id === getSelectedModel());
+
+  useEffect(() => {
+    const update = () => setActiveKeyNameState(getActiveKeyName());
+    update();
+    window.addEventListener("active-key-changed", update);
+    return () => window.removeEventListener("active-key-changed", update);
+  }, []);
 
   return (
     <>
@@ -34,6 +43,16 @@ export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
         </div>
 
         <div className="flex items-center gap-2 md:gap-3.5">
+          {/* Active key indicator */}
+          {activeKeyName && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-warning/[0.08] border border-warning/25 rounded-sm py-1 px-2.5 animate-pulse">
+              <div className="w-1.5 h-1.5 rounded-full bg-warning shadow-[0_0_6px_hsl(var(--warn))]" />
+              <span className="font-mono text-[8px] tracking-[0.5px] text-warning truncate max-w-[120px]">
+                {activeKeyName}
+              </span>
+            </div>
+          )}
+
           <div className="hidden sm:flex items-center gap-1.5 font-mono text-[9px] text-muted-foreground">
             <div className="w-[5px] h-[5px] rounded-full bg-primary shadow-[0_0_6px_hsl(var(--primary))] animate-[blink_1.5s_ease-in-out_infinite]" />
             <span>ONLINE</span>
@@ -48,7 +67,8 @@ export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
             </svg>
-            <span>KEYS</span>
+            <span className="hidden sm:inline">{selectedModel?.label || "KEYS"}</span>
+            <span className="sm:hidden">KEYS</span>
             {keyCount > 0 && (
               <span className="bg-primary/20 text-primary border border-primary/30 rounded-sm px-1 py-0 text-[8px] font-bold">
                 {keyCount}

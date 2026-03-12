@@ -1,7 +1,10 @@
 import type { ProcessedSlide } from "./parser";
 import { VAR_HINTS } from "./prompts";
 import { supabase } from "@/integrations/supabase/client";
-import { getKeys, getNextKey, markKeyFailed, resetAllFailCounts, AllKeysExhaustedError } from "./api-keys";
+import {
+  getKeys, getNextKey, markKeyFailed, resetAllFailCounts, AllKeysExhaustedError,
+  getSelectedModel, setActiveKeyName, clearActiveKeyName,
+} from "./api-keys";
 
 interface EdgeResult {
   imageUrl?: string;
@@ -9,8 +12,13 @@ interface EdgeResult {
   isRetryable?: boolean;
 }
 
-async function callEdgeFunction(promptText: string, faceB64?: string, geminiApiKey?: string): Promise<EdgeResult> {
-  const body: Record<string, string | undefined> = { prompt: promptText, faceB64, geminiApiKey };
+async function callEdgeFunction(
+  promptText: string,
+  faceB64?: string,
+  geminiApiKey?: string,
+  geminiModel?: string,
+): Promise<EdgeResult> {
+  const body: Record<string, string | undefined> = { prompt: promptText, faceB64, geminiApiKey, geminiModel };
   const result = await supabase.functions.invoke("generate-image", { body });
 
   if (result.error) {
@@ -36,6 +44,7 @@ export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: st
     .join("\n");
 
   const sendFace = sl.useFaceRef && faceB64 ? faceB64 : undefined;
+  const selectedModel = getSelectedModel();
 
   // ── Try user keys first with rotation ──
   const userKeys = getKeys();
@@ -44,29 +53,31 @@ export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: st
 
     while (true) {
       const key = getNextKey(triedIds);
-      if (!key) break; // all user keys exhausted
+      if (!key) break;
 
       triedIds.push(key.id);
+      setActiveKeyName(key.name);
 
-      const result = await callEdgeFunction(promptText, sendFace, key.key);
+      const result = await callEdgeFunction(promptText, sendFace, key.key, selectedModel);
 
       if (result.imageUrl) {
         resetAllFailCounts();
+        clearActiveKeyName();
         return result.imageUrl;
       }
 
-      // Any error → mark failed and try next key
       markKeyFailed(key.id);
       console.warn(`[gemini] Key "${key.name}" failed: ${result.error}. Trying next...`);
     }
   }
 
-  // ── Fallback: default LOVABLE_API_KEY (no geminiApiKey sent) ──
+  // ── Fallback: default LOVABLE_API_KEY ──
+  setActiveKeyName("LOVABLE (padrão)");
   const result = await callEdgeFunction(promptText, sendFace);
+  clearActiveKeyName();
 
   if (result.imageUrl) return result.imageUrl;
 
-  // If user had keys and all failed + default also failed → special error
   if (userKeys.length > 0) {
     throw new AllKeysExhaustedError();
   }

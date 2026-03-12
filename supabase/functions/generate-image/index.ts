@@ -16,12 +16,14 @@ serve(async (req) => {
     let prompt: string;
     let faceB64: string | undefined;
     let geminiApiKey: string | undefined;
+    let geminiModel: string | undefined;
 
     try {
       const body = await req.json();
       prompt = body.prompt;
       faceB64 = body.faceB64;
       geminiApiKey = body.geminiApiKey;
+      geminiModel = body.geminiModel;
     } catch {
       return ok({ error: "Invalid request body" });
     }
@@ -30,7 +32,7 @@ serve(async (req) => {
 
     // ── USER KEY PATH: call Google Gemini API directly ──
     if (geminiApiKey) {
-      return await callGoogleGemini(prompt, faceB64, geminiApiKey);
+      return await callGoogleGemini(prompt, faceB64, geminiApiKey, geminiModel || "gemini-2.0-flash-exp");
     }
 
     // ── DEFAULT PATH: use Lovable AI Gateway ──
@@ -81,13 +83,13 @@ serve(async (req) => {
 });
 
 // ── Google Gemini direct call ──
-async function callGoogleGemini(prompt: string, faceB64: string | undefined, apiKey: string) {
+async function callGoogleGemini(prompt: string, faceB64: string | undefined, apiKey: string, model: string) {
   const parts: any[] = [{ text: prompt }];
   if (faceB64) {
     parts.push({ inline_data: { mime_type: "image/jpeg", data: faceB64 } });
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   let response: Response;
   try {
@@ -120,7 +122,6 @@ async function callGoogleGemini(prompt: string, faceB64: string | undefined, api
     return ok({ error: "Malformed response from Gemini", isRetryable: true });
   }
 
-  // Extract inline image from Gemini response
   const candidates = data.candidates;
   if (!candidates?.length) return ok({ error: "No candidates in Gemini response", isRetryable: true });
 
