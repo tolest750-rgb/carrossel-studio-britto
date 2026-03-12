@@ -68,7 +68,7 @@ export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
             </svg>
-            <span className="hidden sm:inline">{selectedModel?.label || "KEYS"}</span>
+            <span className="hidden sm:inline uppercase">{selectedModelLabel || "KEYS"}</span>
             <span className="sm:hidden">KEYS</span>
             {keyCount > 0 && (
               <span className="bg-primary/20 text-primary border border-primary/30 rounded-sm px-1 py-0 text-[8px] font-bold">
