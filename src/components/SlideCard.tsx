@@ -155,7 +155,7 @@ export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVa
             <span
               className={`font-mono text-[8px] tracking-[1px] py-0.5 px-2 rounded-sm border whitespace-nowrap transition-all duration-300 ${stepClass(1)}`}
             >
-              ① IMG_GEN×4
+              ① IMG_GEN
             </span>
             <span className="text-border2 text-[10px]">›</span>
             <span
@@ -182,6 +182,10 @@ export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVa
                 const key = `${index}_${v}`;
                 const varStatus = varStatuses[key] || "idle";
                 const url = varUrls[key];
+
+                // Only show slot if it has content or is actively generating
+                const hasContent = url || varStatus === "generating" || varStatus === "error";
+                if (!hasContent && v > 0) return null;
 
                 return (
                   <div
@@ -214,23 +218,12 @@ export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVa
                               {varErrors[key].length > 180 ? "…" : ""}
                             </span>
                           )}
-                          {varErrors?.[key]?.includes("Todas as chaves") ? (
-                            <button
-                              onClick={() => {
-                                document.dispatchEvent(new CustomEvent("open-api-key-manager"));
-                              }}
-                              className="font-mono text-[8px] tracking-[1px] border border-accent/40 text-accent rounded-sm px-2.5 py-1 hover:bg-accent/10 transition-colors mt-1"
-                            >
-                              ⚡ ADICIONAR CHAVE API
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => regenVar(index, v)}
-                              className="font-mono text-[8px] tracking-[1px] border border-destructive/40 text-destructive rounded-sm px-2.5 py-1 hover:bg-destructive/10 transition-colors mt-1"
-                            >
-                              ↺ TENTAR NOVAMENTE
-                            </button>
-                          )}
+                          <button
+                            onClick={() => regenVar(index, v)}
+                            className="font-mono text-[8px] tracking-[1px] border border-destructive/40 text-destructive rounded-sm px-2.5 py-1 hover:bg-destructive/10 transition-colors mt-1"
+                          >
+                            ↺ TENTAR NOVAMENTE
+                          </button>
                         </div>
                       ) : url ? (
                         <>
@@ -240,7 +233,6 @@ export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVa
                             onClick={() => (selectionMode ? onToggleVar?.(key) : onImageClick(url))}
                             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-100 hover:brightness-105 ${selectionMode ? "cursor-pointer" : "cursor-zoom-in"}`}
                           />
-                          {/* Checkbox de seleção */}
                           {selectionMode && (
                             <button
                               onClick={(e) => {
@@ -302,6 +294,21 @@ export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVa
                 );
               })}
             </div>
+
+            {/* Generate more variations button */}
+            {[0, 1, 2, 3].some((v) => varStatuses[`${index}_${v}`] === "done") && (
+              <button
+                onClick={() => {
+                  // Find next empty variation slot
+                  const nextVar = [0, 1, 2, 3].find((v) => !varUrls[`${index}_${v}`] && varStatuses[`${index}_${v}`] !== "generating");
+                  if (nextVar !== undefined) regenVar(index, nextVar);
+                }}
+                disabled={[0, 1, 2, 3].every((v) => !!varUrls[`${index}_${v}`]) || [0, 1, 2, 3].some((v) => varStatuses[`${index}_${v}`] === "generating")}
+                className="w-full mt-2 bg-transparent border border-accent/40 rounded-sm text-accent font-mono text-[9px] tracking-[1.5px] uppercase py-1.5 cursor-pointer transition-all duration-200 hover:bg-accent/[0.06] hover:border-accent hover:shadow-[0_0_12px_hsl(var(--accent)/0.15)] disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                + GERAR MAIS VARIAÇÕES
+              </button>
+            )}
 
             {[0, 1, 2, 3].some((v) => !!varUrls[`${index}_${v}`]) && (
               <button

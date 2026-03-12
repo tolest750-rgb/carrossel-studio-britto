@@ -8,6 +8,9 @@ import { visualHasTitleInImage } from "./prompts";
 import type { AILayout } from "./compositor";
 import { callGemini } from "./gemini";
 
+// Default number of variations per generation
+const DEFAULT_VARIATIONS = 1;
+
 // ─── TYPES ────────────────────────────────────────────────────
 export interface HistoryEntry {
   id: string;
@@ -322,28 +325,25 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
       setProgress({ done: i, total: totalSlides });
       setSlideStatus(i, "processing");
       newBlobs[i] = new Array(4).fill(null);
-      [0, 1, 2, 3].forEach((v) => setVarStatus(i, v, "generating"));
+      // Generate only 1 variation by default
+      setVarStatus(i, 0, "generating");
 
       const isFirstOrLast = i === 0 || i === totalSlides - 1;
       const titleStyle = (processedSlides[i] as any).titleStyle ?? "default";
 
       try {
-        // Sequential generation: one variation at a time to avoid rate limits
-        for (const v of [0, 1, 2, 3]) {
+        try {
+          const { blob, url } = await generateAndCompose(processedSlides[i], 0, faceB64Ref.current, isFirstOrLast, titleStyle);
           if (stopRef.current) break;
-          try {
-            const { blob, url } = await generateAndCompose(processedSlides[i], v, faceB64Ref.current, isFirstOrLast, titleStyle);
-            if (stopRef.current) break;
-            newBlobs[i][v] = blob;
-            setVarUrl(i, v, url);
-            setVarStatus(i, v, "done");
-            setComposedBlobs((prev) => ({ ...prev, [i]: [...newBlobs[i]] }));
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error(`[slide ${i} var ${v}]`, msg);
-            setVarErrors((p) => ({ ...p, [`${i}_${v}`]: msg }));
-            setVarStatus(i, v, "error");
-          }
+          newBlobs[i][0] = blob;
+          setVarUrl(i, 0, url);
+          setVarStatus(i, 0, "done");
+          setComposedBlobs((prev) => ({ ...prev, [i]: [...newBlobs[i]] }));
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[slide ${i} var 0]`, msg);
+          setVarErrors((p) => ({ ...p, [`${i}_0`]: msg }));
+          setVarStatus(i, 0, "error");
         }
         if (!stopRef.current) setSlideStatus(i, "complete");
       } catch {

@@ -9,7 +9,147 @@ const corsHeaders = {
 const ok = (body: object) =>
   new Response(JSON.stringify(body), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-const DEFAULT_MODEL = "gemini-2.5-flash-preview-image-generation";
+// Models to try in order via Lovable AI Gateway
+const IMAGE_MODELS = [
+  "google/gemini-2.5-flash-image",
+  "google/gemini-3-pro-image-preview",
+  "google/gemini-3.1-flash-image-preview",
+];
+
+const MAX_RETRIES = 3;
+
+async function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function extractRetryDelay(text: string): number {
+  const match = text.match(/retry\s*(?:in|after)\s*(\d+(?:\.\d+)?)\s*s/i);
+  if (match) return Math.ceil(parseFloat(match[1])) * 1000;
+  // Also check retryDelay JSON field
+  const jsonMatch = text.match(/"retryDelay"\s*:\s*"(\d+)s?"/);
+  if (jsonMatch) return parseInt(jsonMatch[1]) * 1000;
+  return 5000; // default 5s
+}
+
+function extractImageFromGatewayResponse(data: any): string | null {
+  // Try standard OpenAI-compatible image response
+  const choices = data?.choices;
+  if (!choices?.length) return null;
+
+  for (const choice of choices) {
+    const msg = choice?.message;
+    if (!msg) continue;
+
+    // Check images array (Lovable gateway format)
+    if (msg.images?.length) {
+      for (const img of msg.images) {
+        if (img?.image_url?.url) return img.image_url.url;
+        if (img?.url) return img.url;
+      }
+    }
+
+    // Check content array with image parts
+    if (Array.isArray(msg.content)) {
+      for (const part of msg.content) {
+        if (part?.type === "image_url" && part?.image_url?.url) return part.image_url.url;
+        if (part?.type === "image" && part?.url) return part.url;
+        // Base64 inline
+        if (part?.type === "image" && part?.data) {
+          return `data:image/png;base64,${part.data}`;
+        }
+      }
+    }
+
+    // Check inline_data in content (Gemini native format wrapped)
+    if (typeof msg.content === "string" && msg.content.startsWith("data:image")) {
+      return msg.content;
+    }
+  }
+
+  return null;
+}
+
+async function generateWithGateway(
+  prompt: string,
+  faceB64: string | undefined,
+  apiKey: string,
+): Promise<{ imageUrl?: string; error?: string; isRetryable?: boolean }> {
+
+  for (const model of IMAGE_MODELS) {
+    console.log(`[generate-image] Trying model: ${model}`);
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const content: any[] = [{ type: "text", text: prompt }];
+      if (faceB64) {
+        content.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${faceB64}` } });
+      }
+
+      try {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content }],
+            modalities: ["image", "text"],
+          }),
+        });
+
+        if (response.status === 429) {
+          const text = await response.text();
+          const delay = extractRetryDelay(text);
+          console.warn(`[generate-image] 429 on ${model}, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          if (attempt < MAX_RETRIES - 1) {
+            await sleep(delay);
+            continue;
+          }
+          // Last attempt on this model, try next model
+          break;
+        }
+
+        if (response.status === 402) {
+          return { error: "Créditos de IA esgotados. Adicione créditos em Settings → Workspace → Usage.", isRetryable: false };
+        }
+
+        if (!response.ok) {
+          const text = await response.text();
+          console.error(`[generate-image] ${model} error ${response.status}:`, text.substring(0, 300));
+          // Try next model
+          break;
+        }
+
+        const rawText = await response.text();
+        if (!rawText) {
+          console.error(`[generate-image] Empty response from ${model}`);
+          break;
+        }
+
+        let data: any;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          console.error(`[generate-image] Malformed JSON from ${model}:`, rawText.substring(0, 200));
+          break;
+        }
+
+        const imageUrl = extractImageFromGatewayResponse(data);
+        if (imageUrl) {
+          console.log(`[generate-image] Success with ${model}`);
+          return { imageUrl };
+        }
+
+        console.warn(`[generate-image] No image extracted from ${model} response, trying next model`);
+        break; // try next model
+
+      } catch (e) {
+        console.error(`[generate-image] Network error on ${model}:`, e);
+        break; // try next model
+      }
+    }
+  }
+
+  return { error: "Nenhum modelo conseguiu gerar a imagem. Tente novamente em alguns instantes.", isRetryable: true };
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -22,177 +162,19 @@ serve(async (req) => {
       return ok({ error: "Invalid request body" });
     }
 
-    // ── ACTION: list-models ──
-    if (body.action === "list-models") {
-      const apiKey = body.geminiApiKey;
-      if (!apiKey) return ok({ error: "Missing geminiApiKey" });
-
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`
-        );
-        if (!res.ok) {
-          const text = await res.text();
-          console.error("List models error:", res.status, text);
-          if (text.includes("API_KEY_INVALID") || text.includes("API key expired")) {
-            return ok({ error: "API_KEY_INVALID", errorType: "API_KEY_INVALID" });
-          }
-          return ok({ error: `Failed to list models: ${res.status}`, errorType: "UNKNOWN" });
-        }
-        const data = await res.json();
-        const imageModels = (data.models || [])
-          .filter((m: any) => {
-            const methods = m.supportedGenerationMethods || [];
-            return methods.includes("generateContent");
-          })
-          .map((m: any) => ({
-            id: m.name?.replace("models/", "") || m.name,
-            displayName: m.displayName || m.name,
-            description: m.description || "",
-            inputTokenLimit: m.inputTokenLimit,
-            outputTokenLimit: m.outputTokenLimit,
-          }));
-        return ok({ models: imageModels, status: "valid" });
-      } catch (e) {
-        console.error("List models fetch error:", e);
-        return ok({ error: "Network error listing models", errorType: "NETWORK" });
-      }
-    }
-
-    // ── ACTION: generate (default) ──
     const prompt = body.prompt;
-    const faceB64 = body.faceB64;
-    const geminiApiKey = body.geminiApiKey;
-    const geminiModel = body.geminiModel;
-
     if (!prompt) return ok({ error: "Missing prompt" });
 
-    // ── USER KEY PATH ──
-    if (geminiApiKey) {
-      return await callGoogleGemini(prompt, faceB64, geminiApiKey, geminiModel || DEFAULT_MODEL);
-    }
+    const faceB64 = body.faceB64;
 
-    // ── DEFAULT PATH: Lovable AI Gateway ──
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) return ok({ error: "LOVABLE_API_KEY not configured" });
 
-    const content: any[] = [{ type: "text", text: prompt }];
-    if (faceB64) {
-      content.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${faceB64}` } });
-    }
+    const result = await generateWithGateway(prompt, faceB64, LOVABLE_API_KEY);
+    return ok(result);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-pro-image-preview",
-        messages: [{ role: "user", content }],
-        modalities: ["image", "text"],
-      }),
-    });
-
-    if (!response.ok) {
-      const status = response.status;
-      const text = await response.text();
-      console.error("AI gateway error:", status, text);
-      if (status === 429) return ok({ error: "Rate limit exceeded.", isRetryable: true, errorType: "RESOURCE_EXHAUSTED" });
-      if (status === 402) return ok({ error: "AI credits exhausted.", isRetryable: true, errorType: "RESOURCE_EXHAUSTED" });
-      return ok({ error: `AI gateway error: ${status}`, isRetryable: true, errorType: "UNKNOWN" });
-    }
-
-    const rawText = await response.text();
-    if (!rawText) return ok({ error: "Empty response from AI gateway", isRetryable: true });
-
-    let data: any;
-    try { data = JSON.parse(rawText); } catch {
-      console.error("Failed to parse AI gateway response:", rawText.substring(0, 200));
-      return ok({ error: "Malformed response from AI gateway", isRetryable: true });
-    }
-
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-    if (!imageUrl) return ok({ error: "No image generated", isRetryable: true });
-
-    return ok({ imageUrl });
   } catch (e) {
     console.error("generate-image error:", e);
     return ok({ error: e instanceof Error ? e.message : "Unknown error", isRetryable: true });
   }
 });
-
-// ── Google Gemini direct call ──
-async function callGoogleGemini(prompt: string, faceB64: string | undefined, apiKey: string, model: string) {
-  const parts: any[] = [{ text: prompt }];
-  if (faceB64) {
-    parts.push({ inline_data: { mime_type: "image/jpeg", data: faceB64 } });
-  }
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
-      }),
-    });
-  } catch (e) {
-    console.error("Google Gemini fetch error:", e);
-    return ok({ error: "Network error calling Gemini API", isRetryable: true, errorType: "NETWORK" });
-  }
-
-  if (!response.ok) {
-    const status = response.status;
-    const text = await response.text();
-    console.error("Google Gemini error:", status, text);
-
-    let errorType = "UNKNOWN";
-    if (text.includes("API_KEY_INVALID") || text.includes("API key expired")) {
-      errorType = "API_KEY_INVALID";
-    } else if (status === 404 || text.includes("NOT_FOUND")) {
-      errorType = "MODEL_NOT_FOUND";
-    } else if (text.includes("does not support") && text.includes("response modalities")) {
-      errorType = "MODEL_NOT_FOUND"; // treat as model issue so client tries next model
-    } else if (status === 429 || text.includes("RESOURCE_EXHAUSTED")) {
-      errorType = "RESOURCE_EXHAUSTED";
-    } else if (status === 403) {
-      errorType = "PERMISSION_DENIED";
-    }
-
-    return ok({ error: `Gemini API error: ${status}`, isRetryable: true, errorType });
-  }
-
-  let data: any;
-  try {
-    const rawText = await response.text();
-    if (!rawText) return ok({ error: "Empty response from Gemini", isRetryable: true });
-    data = JSON.parse(rawText);
-  } catch {
-    return ok({ error: "Malformed response from Gemini", isRetryable: true });
-  }
-
-  const candidates = data.candidates;
-  if (!candidates?.length) {
-    // Check for safety block
-    if (data.promptFeedback?.blockReason) {
-      return ok({ error: `Blocked: ${data.promptFeedback.blockReason}`, isRetryable: false, errorType: "SAFETY_BLOCKED" });
-    }
-    return ok({ error: "No candidates in Gemini response", isRetryable: true });
-  }
-
-  // Search all candidates for an image
-  for (const candidate of candidates) {
-    const contentParts = candidate?.content?.parts;
-    if (!contentParts?.length) continue;
-    const imagePart = contentParts.find((p: any) => p.inline_data?.mime_type?.startsWith("image/"));
-    if (imagePart) {
-      const b64 = imagePart.inline_data.data;
-      const mime = imagePart.inline_data.mime_type;
-      return ok({ imageUrl: `data:${mime};base64,${b64}` });
-    }
-  }
-
-  return ok({ error: "No image in Gemini response", isRetryable: true });
-}

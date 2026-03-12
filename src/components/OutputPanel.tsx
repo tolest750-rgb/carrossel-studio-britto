@@ -162,9 +162,9 @@ export function OutputPanel({ onImageClick }: OutputPanelProps) {
       <div className="flex items-center justify-between flex-wrap gap-2 py-3 px-5 border-b border-border2 bg-background/80 backdrop-blur-lg sticky top-0 z-50">
         <div className="font-mono text-[11px] text-neon2 tracking-[1px]">
           {isGenerating
-            ? `>> GERANDO ${slides.length} SLIDE(S) × 4 VARIAÇÕES...`
+            ? `>> GERANDO ${slides.length} SLIDE(S)...`
             : generationComplete
-              ? `>> ${slides.length} SLIDE(S) × 4 VARIAÇÕES // COMPLETO ✓`
+              ? `>> ${slides.length} SLIDE(S) // COMPLETO ✓`
               : ">> OUTPUT_PANEL"}
         </div>
         <div className="flex gap-1.5 flex-wrap">
