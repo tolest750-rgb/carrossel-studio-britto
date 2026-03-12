@@ -163,6 +163,7 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
   const [slides, setSlides] = useState<ProcessedSlide[]>([]);
   const [composedBlobs, setComposedBlobs] = useState<Record<number, (Blob | null)[]>>({});
   const [varUrls, setVarUrls] = useState<Record<string, string>>({});
+  const [varPrompts, setVarPrompts] = useState<Record<string, string>>({});
   const [varStatuses, setVarStatuses] = useState<Record<string, "idle" | "generating" | "done" | "error">>({});
   const [slideStatuses, setSlideStatuses] = useState<Record<number, "idle" | "processing" | "complete" | "error">>({});
   const [varErrors, setVarErrors] = useState<Record<string, string>>({});
