@@ -45,7 +45,7 @@ async function upscaleBlob(blob: Blob): Promise<Blob> {
 export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVar, selectionMode }: SlideCardProps) {
   const [expanded, setExpanded] = useState(true);
   const [enhancing, setEnhancing] = useState<Record<string, boolean>>({});
-  const { varUrls, varStatuses, varErrors, slideStatuses, slideSteps, regenVar, getVarBlob, faceDataUrl } =
+  const { varUrls, varStatuses, varErrors, varPrompts, slideStatuses, slideSteps, regenVar, getVarBlob, faceDataUrl } =
     useCarousel();
 
   const status = slideStatuses[index] || "idle";
