@@ -6,49 +6,45 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const ok = (body: object) =>
+  new Response(JSON.stringify(body), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     let prompt: string;
     let faceB64: string | undefined;
+    let geminiApiKey: string | undefined;
 
     try {
       const body = await req.json();
       prompt = body.prompt;
       faceB64 = body.faceB64;
+      geminiApiKey = body.geminiApiKey;
     } catch {
-      return new Response(
-        JSON.stringify({ error: "Invalid request body" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return ok({ error: "Invalid request body" });
     }
 
-    if (!prompt) {
-      return new Response(
-        JSON.stringify({ error: "Missing prompt" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!prompt) return ok({ error: "Missing prompt" });
+
+    // ── USER KEY PATH: call Google Gemini API directly ──
+    if (geminiApiKey) {
+      return await callGoogleGemini(prompt, faceB64, geminiApiKey);
     }
 
+    // ── DEFAULT PATH: use Lovable AI Gateway ──
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!LOVABLE_API_KEY) return ok({ error: "LOVABLE_API_KEY not configured" });
 
     const content: any[] = [{ type: "text", text: prompt }];
-
     if (faceB64) {
-      content.push({
-        type: "image_url",
-        image_url: { url: `data:image/jpeg;base64,${faceB64}` },
-      });
+      content.push({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${faceB64}` } });
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "google/gemini-3-pro-image-preview",
         messages: [{ role: "user", content }],
@@ -60,64 +56,83 @@ serve(async (req) => {
       const status = response.status;
       const text = await response.text();
       console.error("AI gateway error:", status, text);
-
-      if (status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please wait and try again.", isQuotaError: true }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits in Settings → Workspace → Usage.", isQuotaError: true }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ error: `AI gateway error: ${status}` }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (status === 429) return ok({ error: "Rate limit exceeded.", isRetryable: true });
+      if (status === 402) return ok({ error: "AI credits exhausted.", isRetryable: true });
+      return ok({ error: `AI gateway error: ${status}`, isRetryable: true });
     }
 
-    // Defensive: read as text first, then parse
     const rawText = await response.text();
-    if (!rawText) {
-      return new Response(
-        JSON.stringify({ error: "Empty response from AI gateway" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    if (!rawText) return ok({ error: "Empty response from AI gateway", isRetryable: true });
 
     let data: any;
-    try {
-      data = JSON.parse(rawText);
-    } catch {
+    try { data = JSON.parse(rawText); } catch {
       console.error("Failed to parse AI gateway response:", rawText.substring(0, 200));
-      return new Response(
-        JSON.stringify({ error: "Malformed response from AI gateway" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return ok({ error: "Malformed response from AI gateway", isRetryable: true });
     }
 
     const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!imageUrl) return ok({ error: "No image generated", isRetryable: true });
 
-    if (!imageUrl) {
-      return new Response(
-        JSON.stringify({ error: "No image generated" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ imageUrl }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return ok({ imageUrl });
   } catch (e) {
     console.error("generate-image error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return ok({ error: e instanceof Error ? e.message : "Unknown error", isRetryable: true });
   }
 });
+
+// ── Google Gemini direct call ──
+async function callGoogleGemini(prompt: string, faceB64: string | undefined, apiKey: string) {
+  const parts: any[] = [{ text: prompt }];
+  if (faceB64) {
+    parts.push({ inline_data: { mime_type: "image/jpeg", data: faceB64 } });
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+      }),
+    });
+  } catch (e) {
+    console.error("Google Gemini fetch error:", e);
+    return ok({ error: "Network error calling Gemini API", isRetryable: true });
+  }
+
+  if (!response.ok) {
+    const status = response.status;
+    const text = await response.text();
+    console.error("Google Gemini error:", status, text);
+    return ok({ error: `Gemini API error: ${status}`, isRetryable: true });
+  }
+
+  let data: any;
+  try {
+    const rawText = await response.text();
+    if (!rawText) return ok({ error: "Empty response from Gemini", isRetryable: true });
+    data = JSON.parse(rawText);
+  } catch {
+    return ok({ error: "Malformed response from Gemini", isRetryable: true });
+  }
+
+  // Extract inline image from Gemini response
+  const candidates = data.candidates;
+  if (!candidates?.length) return ok({ error: "No candidates in Gemini response", isRetryable: true });
+
+  const contentParts = candidates[0]?.content?.parts;
+  if (!contentParts?.length) return ok({ error: "No parts in Gemini response", isRetryable: true });
+
+  const imagePart = contentParts.find((p: any) => p.inline_data?.mime_type?.startsWith("image/"));
+  if (!imagePart) return ok({ error: "No image in Gemini response", isRetryable: true });
+
+  const b64 = imagePart.inline_data.data;
+  const mime = imagePart.inline_data.mime_type;
+  const imageUrl = `data:${mime};base64,${b64}`;
+
+  return ok({ imageUrl });
+}

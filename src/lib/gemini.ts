@@ -1,6 +1,25 @@
 import type { ProcessedSlide } from "./parser";
 import { VAR_HINTS } from "./prompts";
 import { supabase } from "@/integrations/supabase/client";
+import { getKeys, getNextKey, markKeyFailed, resetAllFailCounts, AllKeysExhaustedError } from "./api-keys";
+
+interface EdgeResult {
+  imageUrl?: string;
+  error?: string;
+  isRetryable?: boolean;
+}
+
+async function callEdgeFunction(promptText: string, faceB64?: string, geminiApiKey?: string): Promise<EdgeResult> {
+  const body: Record<string, string | undefined> = { prompt: promptText, faceB64, geminiApiKey };
+  const result = await supabase.functions.invoke("generate-image", { body });
+
+  if (result.error) {
+    const msg = typeof result.error === "string" ? result.error : result.error.message || "Edge Function error";
+    return { error: msg, isRetryable: true };
+  }
+
+  return result.data as EdgeResult;
+}
 
 export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: string): Promise<string | null> {
   if (varIdx > 0) {
@@ -18,24 +37,39 @@ export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: st
 
   const sendFace = sl.useFaceRef && faceB64 ? faceB64 : undefined;
 
-  const result = await supabase.functions.invoke("generate-image", {
-    body: { prompt: promptText, faceB64: sendFace },
-  });
+  // ── Try user keys first with rotation ──
+  const userKeys = getKeys();
+  if (userKeys.length > 0) {
+    const triedIds: string[] = [];
 
-  const data = result.data;
+    while (true) {
+      const key = getNextKey(triedIds);
+      if (!key) break; // all user keys exhausted
 
-  // Edge function now always returns 200, check for error in payload
-  if (result.error) {
-    // Fallback: try to extract message from the error object
-    const msg = typeof result.error === "string" ? result.error : result.error.message || "Edge Function error";
-    throw new Error(msg);
+      triedIds.push(key.id);
+
+      const result = await callEdgeFunction(promptText, sendFace, key.key);
+
+      if (result.imageUrl) {
+        resetAllFailCounts();
+        return result.imageUrl;
+      }
+
+      // Any error → mark failed and try next key
+      markKeyFailed(key.id);
+      console.warn(`[gemini] Key "${key.name}" failed: ${result.error}. Trying next...`);
+    }
   }
 
-  if (data?.imageUrl) return data.imageUrl;
+  // ── Fallback: default LOVABLE_API_KEY (no geminiApiKey sent) ──
+  const result = await callEdgeFunction(promptText, sendFace);
 
-  if (data?.isQuotaError) {
-    throw new Error(data.error || "Rate limit exceeded");
+  if (result.imageUrl) return result.imageUrl;
+
+  // If user had keys and all failed + default also failed → special error
+  if (userKeys.length > 0) {
+    throw new AllKeysExhaustedError();
   }
 
-  throw new Error(data?.error || "Unknown error generating image");
+  throw new Error(result.error || "Unknown error generating image");
 }
