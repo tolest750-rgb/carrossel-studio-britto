@@ -8,6 +8,9 @@ import { visualHasTitleInImage } from "./prompts";
 import type { AILayout } from "./compositor";
 import { callGemini } from "./gemini";
 
+// Default number of variations per generation
+const DEFAULT_VARIATIONS = 1;
+
 // ─── TYPES ────────────────────────────────────────────────────
 export interface HistoryEntry {
   id: string;
