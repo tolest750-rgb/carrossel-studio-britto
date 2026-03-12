@@ -101,8 +101,24 @@ export function Sidebar() {
   const [showLayoutPresets, setShowLayoutPresets] = useState(true);
   const [textMode, setTextMode] = useState<"edit" | "preview">("edit");
   const [copied, setCopied] = useState(false);
-  const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem("googleApiKey") || "");
-  const [showKey, setShowKey] = useState(false);
+  const [todayCount, setTodayCount] = useState(() => {
+    const stored = localStorage.getItem("ai_usage");
+    if (!stored) return 0;
+    const data = JSON.parse(stored);
+    return data.date === new Date().toISOString().slice(0, 10) ? data.count : 0;
+  });
+
+  // Listen for usage updates from gemini.ts
+  useState(() => {
+    const handler = () => {
+      const stored = localStorage.getItem("ai_usage");
+      if (!stored) return;
+      const data = JSON.parse(stored);
+      if (data.date === new Date().toISOString().slice(0, 10)) setTodayCount(data.count);
+    };
+    window.addEventListener("ai_usage_updated", handler);
+    return () => window.removeEventListener("ai_usage_updated", handler);
+  });
 
   // ── Text helpers ────────────────────────────────────────────
   const canGenerate = rawText.trim().length > 0 && !isGenerating;
