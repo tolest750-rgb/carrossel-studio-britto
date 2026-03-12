@@ -155,7 +155,7 @@ export function SlideCard({ slide, index, onImageClick, selectedVars, onToggleVa
             <span
               className={`font-mono text-[8px] tracking-[1px] py-0.5 px-2 rounded-sm border whitespace-nowrap transition-all duration-300 ${stepClass(1)}`}
             >
-              ① IMG_GEN×4
+              ① IMG_GEN
             </span>
             <span className="text-border2 text-[10px]">›</span>
             <span
