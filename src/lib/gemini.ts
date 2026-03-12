@@ -22,9 +22,14 @@ export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: st
     body: { prompt: promptText, faceB64: sendFace },
   });
 
-  if (result.error) throw new Error(result.error.message || "Edge Function error");
-
   const data = result.data;
+
+  // Edge function now always returns 200, check for error in payload
+  if (result.error) {
+    // Fallback: try to extract message from the error object
+    const msg = typeof result.error === "string" ? result.error : result.error.message || "Edge Function error";
+    throw new Error(msg);
+  }
 
   if (data?.imageUrl) return data.imageUrl;
 
