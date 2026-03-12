@@ -13,26 +13,63 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    let prompt: string;
-    let faceB64: string | undefined;
-    let geminiApiKey: string | undefined;
-    let geminiModel: string | undefined;
-
+    let body: any;
     try {
-      const body = await req.json();
-      prompt = body.prompt;
-      faceB64 = body.faceB64;
-      geminiApiKey = body.geminiApiKey;
-      geminiModel = body.geminiModel;
+      body = await req.json();
     } catch {
       return ok({ error: "Invalid request body" });
     }
+
+    // ── ACTION: list-models — discover available models for a key ──
+    if (body.action === "list-models") {
+      const apiKey = body.geminiApiKey;
+      if (!apiKey) return ok({ error: "Missing geminiApiKey" });
+
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`
+        );
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("List models error:", res.status, text);
+          // Classify the error
+          if (text.includes("API_KEY_INVALID") || text.includes("API key expired")) {
+            return ok({ error: "API_KEY_INVALID", errorType: "API_KEY_INVALID" });
+          }
+          return ok({ error: `Failed to list models: ${res.status}`, errorType: "UNKNOWN" });
+        }
+        const data = await res.json();
+        // Filter models that support generateContent and image output
+        const imageModels = (data.models || [])
+          .filter((m: any) => {
+            const methods = m.supportedGenerationMethods || [];
+            return methods.includes("generateContent");
+          })
+          .map((m: any) => ({
+            id: m.name?.replace("models/", "") || m.name,
+            displayName: m.displayName || m.name,
+            description: m.description || "",
+            inputTokenLimit: m.inputTokenLimit,
+            outputTokenLimit: m.outputTokenLimit,
+          }));
+        return ok({ models: imageModels, status: "valid" });
+      } catch (e) {
+        console.error("List models fetch error:", e);
+        return ok({ error: "Network error listing models", errorType: "NETWORK" });
+      }
+    }
+
+    // ── ACTION: generate (default) ──
+    const prompt = body.prompt;
+    const faceB64 = body.faceB64;
+    const geminiApiKey = body.geminiApiKey;
+    const geminiModel = body.geminiModel;
 
     if (!prompt) return ok({ error: "Missing prompt" });
 
     // ── USER KEY PATH: call Google Gemini API directly ──
     if (geminiApiKey) {
-      return await callGoogleGemini(prompt, faceB64, geminiApiKey, geminiModel || "gemini-2.0-flash-exp");
+      return await callGoogleGemini(prompt, faceB64, geminiApiKey, geminiModel || "gemini-2.0-flash-preview-image-generation");
     }
 
     // ── DEFAULT PATH: use Lovable AI Gateway ──
@@ -58,9 +95,9 @@ serve(async (req) => {
       const status = response.status;
       const text = await response.text();
       console.error("AI gateway error:", status, text);
-      if (status === 429) return ok({ error: "Rate limit exceeded.", isRetryable: true });
-      if (status === 402) return ok({ error: "AI credits exhausted.", isRetryable: true });
-      return ok({ error: `AI gateway error: ${status}`, isRetryable: true });
+      if (status === 429) return ok({ error: "Rate limit exceeded.", isRetryable: true, errorType: "RESOURCE_EXHAUSTED" });
+      if (status === 402) return ok({ error: "AI credits exhausted.", isRetryable: true, errorType: "RESOURCE_EXHAUSTED" });
+      return ok({ error: `AI gateway error: ${status}`, isRetryable: true, errorType: "UNKNOWN" });
     }
 
     const rawText = await response.text();
@@ -103,14 +140,27 @@ async function callGoogleGemini(prompt: string, faceB64: string | undefined, api
     });
   } catch (e) {
     console.error("Google Gemini fetch error:", e);
-    return ok({ error: "Network error calling Gemini API", isRetryable: true });
+    return ok({ error: "Network error calling Gemini API", isRetryable: true, errorType: "NETWORK" });
   }
 
   if (!response.ok) {
     const status = response.status;
     const text = await response.text();
     console.error("Google Gemini error:", status, text);
-    return ok({ error: `Gemini API error: ${status}`, isRetryable: true });
+
+    // Classify error type for smart rotation
+    let errorType = "UNKNOWN";
+    if (text.includes("API_KEY_INVALID") || text.includes("API key expired")) {
+      errorType = "API_KEY_INVALID";
+    } else if (status === 404 || text.includes("NOT_FOUND")) {
+      errorType = "MODEL_NOT_FOUND";
+    } else if (status === 429 || text.includes("RESOURCE_EXHAUSTED")) {
+      errorType = "RESOURCE_EXHAUSTED";
+    } else if (status === 403) {
+      errorType = "PERMISSION_DENIED";
+    }
+
+    return ok({ error: `Gemini API error: ${status}`, isRetryable: true, errorType });
   }
 
   let data: any;

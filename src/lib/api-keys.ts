@@ -1,6 +1,9 @@
 const STORAGE_KEY = "gemini_api_keys";
 const MODEL_KEY = "gemini_selected_model";
 const ACTIVE_KEY_KEY = "gemini_active_key_name";
+const KEY_MODELS_KEY = "gemini_key_models"; // cache of models per key
+
+export type KeyStatus = "valid" | "expired" | "unknown" | "checking";
 
 export interface GeminiKeyEntry {
   id: string;
@@ -8,23 +11,42 @@ export interface GeminiKeyEntry {
   key: string;
   addedAt: string;
   failCount: number;
+  status?: KeyStatus;
+  availableModels?: string[];
 }
 
-export const GEMINI_MODELS = [
-  { id: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash", desc: "Rápido, suporta imagem" },
-  { id: "gemini-2.5-flash-preview-05-20", label: "Gemini 2.5 Flash", desc: "Equilibrado, multimodal" },
-  { id: "gemini-2.5-pro-preview-06-05", label: "Gemini 2.5 Pro", desc: "Mais capaz, mais lento" },
-] as const;
+export interface DiscoveredModel {
+  id: string;
+  displayName: string;
+  description: string;
+}
 
-export type GeminiModelId = (typeof GEMINI_MODELS)[number]["id"];
+// Preferred models for image generation, in priority order
+export const IMAGE_MODEL_PRIORITY = [
+  "gemini-2.0-flash-preview-image-generation",
+  "gemini-2.0-flash-exp",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro",
+  "gemini-2.5-flash-preview-05-20",
+  "gemini-2.5-pro-preview-06-05",
+];
 
-export function getSelectedModel(): GeminiModelId {
+// Legacy models to migrate away from
+const LEGACY_MODELS = ["gemini-2.0-flash-exp"];
+
+export function getSelectedModel(): string {
   const stored = localStorage.getItem(MODEL_KEY);
-  if (stored && GEMINI_MODELS.some((m) => m.id === stored)) return stored as GeminiModelId;
-  return "gemini-2.0-flash-exp";
+  // Migrate legacy model
+  if (!stored || LEGACY_MODELS.includes(stored)) {
+    const defaultModel = "gemini-2.0-flash-preview-image-generation";
+    localStorage.setItem(MODEL_KEY, defaultModel);
+    return defaultModel;
+  }
+  return stored;
 }
 
-export function setSelectedModel(model: GeminiModelId): void {
+export function setSelectedModel(model: string): void {
   localStorage.setItem(MODEL_KEY, model);
 }
 
@@ -61,6 +83,7 @@ export function addKey(name: string, key: string): GeminiKeyEntry {
     key: key.trim(),
     addedAt: new Date().toISOString(),
     failCount: 0,
+    status: "unknown",
   };
   const keys = getKeys();
   keys.push(entry);
@@ -74,7 +97,8 @@ export function removeKey(id: string): void {
 
 export function getNextKey(excludeIds: string[]): GeminiKeyEntry | null {
   const keys = getKeys();
-  return keys.find((k) => !excludeIds.includes(k.id)) ?? null;
+  // Skip keys marked as expired
+  return keys.find((k) => !excludeIds.includes(k.id) && k.status !== "expired") ?? null;
 }
 
 export function markKeyFailed(id: string): void {
@@ -84,15 +108,50 @@ export function markKeyFailed(id: string): void {
   saveKeys(keys);
 }
 
+export function markKeyExpired(id: string): void {
+  const keys = getKeys();
+  const k = keys.find((x) => x.id === id);
+  if (k) k.status = "expired";
+  saveKeys(keys);
+}
+
+export function updateKeyModels(id: string, models: string[]): void {
+  const keys = getKeys();
+  const k = keys.find((x) => x.id === id);
+  if (k) {
+    k.availableModels = models;
+    k.status = "valid";
+  }
+  saveKeys(keys);
+}
+
 export function resetAllFailCounts(): void {
   const keys = getKeys();
   keys.forEach((k) => (k.failCount = 0));
   saveKeys(keys);
 }
 
+/** Pick the best model for a key given user preference */
+export function pickBestModel(selectedModel: string, availableModels?: string[]): string {
+  if (!availableModels || availableModels.length === 0) return selectedModel;
+  // If user's selected model is available, use it
+  if (availableModels.includes(selectedModel)) return selectedModel;
+  // Otherwise, pick from priority list
+  for (const m of IMAGE_MODEL_PRIORITY) {
+    if (availableModels.includes(m)) return m;
+  }
+  // Fallback to first available
+  return availableModels[0] || selectedModel;
+}
+
 export class AllKeysExhaustedError extends Error {
-  constructor() {
-    super("Todas as chaves API foram tentadas e falharam. Adicione uma nova chave para continuar.");
+  public reasons: string[];
+  constructor(reasons: string[] = []) {
+    const msg = reasons.length > 0
+      ? `Todas as chaves falharam: ${[...new Set(reasons)].join(", ")}`
+      : "Todas as chaves API foram tentadas e falharam. Adicione uma nova chave para continuar.";
+    super(msg);
     this.name = "AllKeysExhaustedError";
+    this.reasons = reasons;
   }
 }
