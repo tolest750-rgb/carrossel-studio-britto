@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ApiKeyManager } from "./ApiKeyManager";
-import { getKeys, getActiveKeyName, getSelectedModel, GEMINI_MODELS } from "@/lib/api-keys";
+import { getKeys, getActiveKeyName, getSelectedModel } from "@/lib/api-keys";
 
 export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const [showKeys, setShowKeys] = useState(false);
