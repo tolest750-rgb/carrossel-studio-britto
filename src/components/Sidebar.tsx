@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useCarousel } from "@/lib/carousel-store";
 import type { HistoryEntry, FacePreset, LayoutPreset } from "@/lib/carousel-store";
 import { FaceUpload } from "./FaceUpload";
