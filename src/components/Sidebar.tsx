@@ -101,6 +101,8 @@ export function Sidebar() {
   const [showLayoutPresets, setShowLayoutPresets] = useState(true);
   const [textMode, setTextMode] = useState<"edit" | "preview">("edit");
   const [copied, setCopied] = useState(false);
+  const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem("googleApiKey") || "");
+  const [showKey, setShowKey] = useState(false);
 
   // ── Text helpers ────────────────────────────────────────────
   const canGenerate = rawText.trim().length > 0 && !isGenerating;

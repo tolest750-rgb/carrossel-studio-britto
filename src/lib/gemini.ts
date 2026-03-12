@@ -11,7 +11,8 @@ interface EdgeResult {
 const MAX_CLIENT_RETRIES = 3;
 
 async function callEdgeFunction(promptText: string, faceB64?: string): Promise<EdgeResult> {
-  const body: Record<string, string | undefined> = { prompt: promptText, faceB64 };
+  const googleApiKey = localStorage.getItem("googleApiKey") || undefined;
+  const body: Record<string, string | undefined> = { prompt: promptText, faceB64, googleApiKey };
   const result = await supabase.functions.invoke("generate-image", { body });
 
   if (result.error) {

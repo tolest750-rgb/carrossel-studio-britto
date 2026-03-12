@@ -9,13 +9,105 @@ const corsHeaders = {
 const ok = (body: object) =>
   new Response(JSON.stringify(body), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+// ── Google Direct API ────────────────────────────────────────
+
+const GOOGLE_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const GOOGLE_MODEL = "gemini-2.0-flash-exp";
+
+async function generateWithGoogle(
+  prompt: string,
+  faceB64: string | undefined,
+  googleApiKey: string,
+): Promise<{ imageUrl?: string; error?: string; isRetryable?: boolean }> {
+  const MAX_RETRIES = 2;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const parts: any[] = [{ text: prompt }];
+      if (faceB64) {
+        parts.push({ inlineData: { mimeType: "image/jpeg", data: faceB64 } });
+      }
+
+      const response = await fetch(
+        `${GOOGLE_API_URL}/${GOOGLE_MODEL}:generateContent?key=${googleApiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts }],
+            generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+          }),
+        },
+      );
+
+      if (response.status === 429) {
+        const text = await response.text();
+        console.warn(`[generate-image] Google 429 (attempt ${attempt + 1}):`, text.substring(0, 200));
+        if (attempt < MAX_RETRIES - 1) { await sleep(3000); continue; }
+        return { error: "Rate limit do Google. Aguarde alguns segundos.", isRetryable: true };
+      }
+
+      if (response.status === 400 || response.status === 403) {
+        const text = await response.text();
+        console.error(`[generate-image] Google ${response.status}:`, text.substring(0, 300));
+        return { error: `Erro na API Key do Google (${response.status}). Verifique se a key é válida.`, isRetryable: false };
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`[generate-image] Google error ${response.status}:`, text.substring(0, 300));
+        if (attempt < MAX_RETRIES - 1) { await sleep(2000); continue; }
+        return { error: `Erro Google API: ${response.status}`, isRetryable: true };
+      }
+
+      const data = await response.json();
+      const imageUrl = extractFromGoogleResponse(data);
+      if (imageUrl) {
+        console.log(`[generate-image] Success with Google Direct (${GOOGLE_MODEL})`);
+        return { imageUrl };
+      }
+
+      console.warn(`[generate-image] No image in Google response (attempt ${attempt + 1}):`,
+        JSON.stringify({
+          hasCandidates: !!data?.candidates?.length,
+          partsCount: data?.candidates?.[0]?.content?.parts?.length || 0,
+          partTypes: data?.candidates?.[0]?.content?.parts?.map((p: any) => Object.keys(p)) || [],
+        })
+      );
+
+      if (attempt < MAX_RETRIES - 1) { await sleep(1500); continue; }
+    } catch (e) {
+      console.error(`[generate-image] Google network error:`, e);
+      if (attempt < MAX_RETRIES - 1) { await sleep(2000); continue; }
+    }
+  }
+
+  return { error: "Google API não retornou imagem. Tente novamente.", isRetryable: true };
+}
+
+function extractFromGoogleResponse(data: any): string | null {
+  const candidates = data?.candidates;
+  if (!candidates?.length) return null;
+
+  const parts = candidates[0]?.content?.parts;
+  if (!Array.isArray(parts)) return null;
+
+  for (const part of parts) {
+    if (part?.inlineData?.mimeType?.startsWith("image/")) {
+      return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+    }
+  }
+  return null;
+}
+
+// ── Lovable AI Gateway (fallback) ────────────────────────────
+
 const IMAGE_MODELS = [
-  "google/gemini-3.1-flash-image-preview",
-  "google/gemini-2.5-flash-image",
   "google/gemini-3-pro-image-preview",
+  "google/gemini-2.5-flash-image",
 ];
 
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 2;
 
 async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
@@ -92,10 +184,7 @@ async function generateWithGateway(
           const text = await response.text();
           const delay = extractRetryDelay(text);
           console.warn(`[generate-image] 429 on ${model}, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-          if (attempt < MAX_RETRIES - 1) {
-            await sleep(delay);
-            continue;
-          }
+          if (attempt < MAX_RETRIES - 1) { await sleep(delay); continue; }
           break;
         }
 
@@ -112,7 +201,7 @@ async function generateWithGateway(
         const rawText = await response.text();
         if (!rawText) {
           console.error(`[generate-image] Empty response from ${model}`);
-          if (attempt < MAX_RETRIES - 1) { await sleep(2000); continue; }
+          if (attempt < MAX_RETRIES - 1) { await sleep(1500); continue; }
           break;
         }
 
@@ -121,7 +210,7 @@ async function generateWithGateway(
           data = JSON.parse(rawText);
         } catch {
           console.error(`[generate-image] Malformed JSON from ${model}:`, rawText.substring(0, 200));
-          if (attempt < MAX_RETRIES - 1) { await sleep(2000); continue; }
+          if (attempt < MAX_RETRIES - 1) { await sleep(1500); continue; }
           break;
         }
 
@@ -131,7 +220,6 @@ async function generateWithGateway(
           return { imageUrl };
         }
 
-        // Log response structure for debugging
         const msg = data?.choices?.[0]?.message;
         console.warn(`[generate-image] No image extracted from ${model} (attempt ${attempt + 1}/${MAX_RETRIES}). Structure:`,
           JSON.stringify({
@@ -145,16 +233,12 @@ async function generateWithGateway(
           })
         );
 
-        if (attempt < MAX_RETRIES - 1) {
-          await sleep(2000);
-          continue;
-        }
-        // All retries exhausted for this model, try next
+        if (attempt < MAX_RETRIES - 1) { await sleep(1500); continue; }
         break;
 
       } catch (e) {
         console.error(`[generate-image] Network error on ${model}:`, e);
-        if (attempt < MAX_RETRIES - 1) { await sleep(2000); continue; }
+        if (attempt < MAX_RETRIES - 1) { await sleep(1500); continue; }
         break;
       }
     }
@@ -162,6 +246,8 @@ async function generateWithGateway(
 
   return { error: "Nenhum modelo conseguiu gerar a imagem. Tente novamente em alguns instantes.", isRetryable: true };
 }
+
+// ── Handler ──────────────────────────────────────────────────
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -178,7 +264,16 @@ serve(async (req) => {
     if (!prompt) return ok({ error: "Missing prompt" });
 
     const faceB64 = body.faceB64;
+    const googleApiKey = body.googleApiKey;
 
+    // Path 1: Google Direct (user's own key, free)
+    if (googleApiKey) {
+      console.log("[generate-image] Using Google Direct API");
+      const result = await generateWithGoogle(prompt, faceB64, googleApiKey);
+      return ok(result);
+    }
+
+    // Path 2: Lovable AI Gateway (fallback)
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) return ok({ error: "LOVABLE_API_KEY not configured" });
 
