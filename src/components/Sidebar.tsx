@@ -107,6 +107,8 @@ export function Sidebar() {
     const data = JSON.parse(stored);
     return data.date === new Date().toISOString().slice(0, 10) ? data.count : 0;
   });
+  const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem("google_api_key") || "");
+  const [showKey, setShowKey] = useState(false);
 
   // Listen for usage updates from gemini.ts
   useEffect(() => {
