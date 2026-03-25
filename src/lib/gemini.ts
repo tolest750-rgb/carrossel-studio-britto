@@ -29,7 +29,8 @@ function incrementTodayCount() {
 }
 
 async function callEdgeFunction(promptText: string, faceB64?: string): Promise<EdgeResult> {
-  const body: Record<string, string | undefined> = { prompt: promptText, faceB64 };
+  const googleApiKey = localStorage.getItem("google_api_key") || undefined;
+  const body: Record<string, string | undefined> = { prompt: promptText, faceB64, googleApiKey };
   const result = await supabase.functions.invoke("generate-image", { body });
 
   if (result.error) {

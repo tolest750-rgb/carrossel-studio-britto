@@ -107,6 +107,8 @@ export function Sidebar() {
     const data = JSON.parse(stored);
     return data.date === new Date().toISOString().slice(0, 10) ? data.count : 0;
   });
+  const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem("google_api_key") || "");
+  const [showKey, setShowKey] = useState(false);
 
   // Listen for usage updates from gemini.ts
   useEffect(() => {
@@ -158,19 +160,69 @@ export function Sidebar() {
 
       {activeTab === "config" && (
         <>
-          {/* ── Lovable AI Status ──────────────────────── */}
+          {/* ── AI Provider Status ──────────────────────── */}
           <div className="p-4 border-b border-border2">
             <div className="font-mono text-[9px] tracking-[2.5px] uppercase text-muted-foreground mb-2 flex items-center gap-2">
               <span className="text-primary" style={{ textShadow: "0 0 6px hsl(var(--primary))" }}>⚡</span>
-              LOVABLE AI
+              {googleApiKey ? "GOOGLE AI" : "LOVABLE AI"}
               <span className="flex-1 h-px bg-gradient-to-r from-border2 to-transparent" />
             </div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_hsl(142_71%_45%)]" />
-              <span className="font-mono text-[9px] text-foreground tracking-[1px]">CONECTADO</span>
+              <span className="font-mono text-[9px] text-foreground tracking-[1px]">
+                {googleApiKey ? "NANO BANANA PRO · GRÁTIS" : "CONECTADO"}
+              </span>
             </div>
-            <div className="font-mono text-[8px] text-muted-foreground tracking-[0.5px]">
+            <div className="font-mono text-[8px] text-muted-foreground tracking-[0.5px] mb-2">
               Imagens geradas hoje: <span className="text-primary">{todayCount}</span>
+            </div>
+
+            {/* Google API Key input */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex gap-1">
+                <input
+                  type={showKey ? "text" : "password"}
+                  value={googleApiKey}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setGoogleApiKey(val);
+                    if (val.trim()) {
+                      localStorage.setItem("google_api_key", val.trim());
+                    } else {
+                      localStorage.removeItem("google_api_key");
+                    }
+                  }}
+                  placeholder="Google API Key..."
+                  className="flex-1 bg-card border border-border2 rounded-sm font-mono text-[10px] px-2 py-1.5 text-foreground outline-none focus:border-primary placeholder:text-muted-foreground"
+                />
+                <button
+                  onClick={() => setShowKey((v) => !v)}
+                  className="bg-card border border-border2 rounded-sm font-mono text-[8px] px-1.5 text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+                  title={showKey ? "Ocultar" : "Mostrar"}
+                >
+                  {showKey ? "◉" : "◎"}
+                </button>
+                {googleApiKey && (
+                  <button
+                    onClick={() => {
+                      setGoogleApiKey("");
+                      localStorage.removeItem("google_api_key");
+                    }}
+                    className="bg-card border border-border2 rounded-sm font-mono text-[8px] px-1.5 text-destructive hover:border-destructive transition-colors"
+                    title="Remover key"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <a
+                href="https://aistudio.google.com/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-[8px] text-primary hover:underline tracking-[0.5px]"
+              >
+                🔑 Obter key grátis no Google AI Studio →
+              </a>
             </div>
           </div>
 
