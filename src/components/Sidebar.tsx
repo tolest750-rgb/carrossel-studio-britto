@@ -328,22 +328,50 @@ export function Sidebar() {
             <div className="space-y-1.5">
               {projects.projects.map((p) => {
                 const active = p.id === c.currentProjectId;
+                const isRenaming = renamingId === p.id;
+                const count = counts[p.id] || 0;
                 return (
                   <div
                     key={p.id}
-                    className={`group border rounded-sm p-2.5 transition-all cursor-pointer ${
+                    className={`group border rounded-sm p-2.5 transition-all ${isRenaming ? "" : "cursor-pointer"} ${
                       active
                         ? "border-primary bg-primary/10 shadow-[0_0_8px_hsl(var(--primary)/0.15)]"
                         : "border-border2 bg-card hover:border-primary/50"
                     }`}
-                    onClick={() => { c.loadProject(p.id); setTab("config"); }}
+                    onClick={() => { if (!isRenaming) { c.loadProject(p.id); setTab("config"); } }}
                   >
                     <div className="flex items-start gap-2">
                       <Folder className={`w-3.5 h-3.5 mt-0.5 ${active ? "text-primary" : "text-muted-foreground"}`} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[11px] font-mono text-foreground truncate">{p.name}</div>
-                        <div className="text-[9px] font-mono text-muted-foreground">
-                          {new Date(p.updated_at).toLocaleDateString("pt-BR")}
+                        {isRenaming ? (
+                          <Input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={commitRename}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); commitRename(); }
+                              if (e.key === "Escape") { e.preventDefault(); setRenamingId(null); }
+                            }}
+                            className="h-6 text-[11px] font-mono px-1.5 py-0 bg-background border-primary"
+                          />
+                        ) : (
+                          <div
+                            className="text-[11px] font-mono text-foreground truncate"
+                            onDoubleClick={(e) => { e.stopPropagation(); startRename(p.id, p.name); }}
+                            title="Clique-duplo para renomear"
+                          >
+                            {p.name}
+                          </div>
+                        )}
+                        <div className="text-[9px] font-mono text-muted-foreground flex items-center gap-2 mt-0.5">
+                          <span>{new Date(p.updated_at).toLocaleDateString("pt-BR")}</span>
+                          <span className={`px-1.5 py-0.5 rounded-sm tracking-wider uppercase ${
+                            count > 0 ? "bg-primary/15 text-primary" : "bg-card border border-border2"
+                          }`}>
+                            {count} {count === 1 ? "geração" : "gerações"}
+                          </span>
                         </div>
                       </div>
                       <button
