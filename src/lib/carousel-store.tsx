@@ -245,8 +245,8 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
   const saveCurrentProject = useCallback(async () => {
     if (!currentProjectId) return;
     await supabase.from("projects").update({
-      script_data: { rawText },
-      parameters: { style, light, fmt, res, typography, lightConfig },
+      script_data: { rawText } as any,
+      parameters: { style, light, fmt, res, typography, lightConfig } as any,
       updated_at: new Date().toISOString(),
     }).eq("id", currentProjectId);
   }, [currentProjectId, rawText, style, light, fmt, res, typography, lightConfig]);
@@ -313,9 +313,9 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
       const { data: np } = await supabase.from("projects").insert({
         user_id: userIdRef.current,
         name,
-        script_data: { rawText },
-        parameters: { style, light, fmt, res, typography, lightConfig },
-      }).select().single();
+        script_data: { rawText } as any,
+        parameters: { style, light, fmt, res, typography, lightConfig } as any,
+      } as any).select().single();
       if (np) { projectId = np.id; setCurrentProjectId(np.id); }
     } else if (projectId) {
       await saveCurrentProject();
