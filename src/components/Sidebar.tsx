@@ -3,13 +3,13 @@ import { useCarousel } from "@/lib/carousel-store";
 import { useProjects } from "@/hooks/use-projects";
 import { FaceUpload } from "./FaceUpload";
 import { LayoutRefUpload } from "./LayoutRefUpload";
-import { ApiKeyManager } from "./ApiKeyManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 import {
-  KeyRound, Type, Palette, Wand2, FileText, Image as ImageIcon, Layout,
-  Folder, Plus, Trash2, Play, Square, FolderOpen, ChevronDown, ChevronRight,
+  Type, Palette, Wand2, FileText, Image as ImageIcon, Layout,
+  Folder, Plus, Trash2, Play, Square, FolderOpen, ChevronDown, ChevronRight, KeyRound,
 } from "lucide-react";
 import type { StyleKey, LightKey, FormatKey, FontKey, TypographyConfig } from "@/lib/parser";
 
@@ -149,9 +149,20 @@ export function Sidebar() {
             </div>
           )}
 
-          <Section icon={KeyRound} title="API Key & Modelo">
-            <ApiKeyManager onModelChange={c.setSelectedModel} />
-          </Section>
+          <div className="px-4 py-3 border-b border-border2/50">
+            <Link
+              to="/account"
+              className="flex items-center justify-between gap-2 px-3 py-2 border border-border2 rounded-sm hover:border-primary hover:bg-primary/5 transition group"
+            >
+              <span className="flex items-center gap-2">
+                <KeyRound className="w-3.5 h-3.5 text-primary" />
+                <span className="font-mono text-[10px] tracking-[2px] uppercase text-foreground">API Key & Modelo</span>
+              </span>
+              <span className="font-mono text-[9px] tracking-wider text-muted-foreground group-hover:text-primary">
+                Conta →
+              </span>
+            </Link>
+          </div>
 
           <Section icon={ImageIcon} title="Rosto de Referência" defaultOpen={false}>
             <FaceUpload />
