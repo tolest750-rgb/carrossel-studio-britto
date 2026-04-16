@@ -351,8 +351,15 @@ export function Sidebar() {
                     }`}
                     onClick={() => { if (!isRenaming) { c.loadProject(p.id); setTab("config"); } }}
                   >
-                    <div className="flex items-start gap-2">
-                      <Folder className={`w-3.5 h-3.5 mt-0.5 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                    <div className="flex items-start gap-2.5">
+                      {p.thumbnail_url ? (
+                        <img src={p.thumbnail_url} alt="" loading="lazy"
+                          className="w-12 h-12 object-cover rounded-sm border border-border2 shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 flex items-center justify-center rounded-sm border border-border2 bg-card2 shrink-0">
+                          <Folder className={`w-4 h-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         {isRenaming ? (
                           <Input
