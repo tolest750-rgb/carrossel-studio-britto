@@ -9,11 +9,6 @@ export interface SlideData {
   num: string;
 }
 
-/**
- * Layout position determines where text will be placed on the slide.
- * The compositor and prompt system both use this to coordinate
- * image generation with typography placement.
- */
 export type LayoutPosition =
   | 'bottom-left'
   | 'bottom-center'
@@ -34,10 +29,37 @@ export interface ProcessedSlide extends SlideData {
   res: string;
 }
 
-export type StyleKey = 'cinematic' | 'corporate' | 'futuristic' | 'editorial';
-export type LightKey = 'dramatic' | 'warm' | 'green' | 'moody';
+// New style options
+export type StyleKey = 'ultra3d' | 'cinematic' | 'futuristic' | 'cleancorp';
+
+// New lighting options (with extra payloads for neon/custom colors)
+export type LightKey = 'warm' | 'cold' | 'clean' | 'neon' | 'custom';
+
 export type FormatKey = '4:5' | '9:16' | '1:1';
-export type ResKey = '1K' | '2K' | '4K';
+export type ResKey = '4K';
+
+// Typography options
+export type FontKey =
+  | 'rajdhani'
+  | 'orbitron'
+  | 'playfair'
+  | 'inter'
+  | 'bebas'
+  | 'montserrat'
+  | 'oswald'
+  | 'space-grotesk';
+
+export interface TypographyConfig {
+  title: FontKey;
+  subtitle: FontKey;
+  cta: FontKey;
+}
+
+export interface LightConfig {
+  light: LightKey;
+  neonColor?: string;       // for neon
+  customColors?: [string, string]; // for custom palette
+}
 
 export function parseSlides(raw: string): SlideData[] {
   const blocks = raw.split(/\n\s*-{3,}\s*\n/).map(b => b.trim()).filter(Boolean);
