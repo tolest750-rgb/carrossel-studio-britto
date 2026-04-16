@@ -63,6 +63,26 @@ export function useProjects() {
     await refresh();
   }, [refresh]);
 
+  const rename = useCallback(async (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    await supabase.from("projects").update({ name: trimmed, updated_at: new Date().toISOString() }).eq("id", id);
+    await refresh();
+  }, [refresh]);
+
+  const getCounts = useCallback(async (): Promise<Record<string, number>> => {
+    if (!user) return {};
+    const { data } = await supabase
+      .from("generations")
+      .select("project_id")
+      .not("image_url", "is", null);
+    const counts: Record<string, number> = {};
+    (data || []).forEach((row: any) => {
+      counts[row.project_id] = (counts[row.project_id] || 0) + 1;
+    });
+    return counts;
+  }, [user]);
+
   const getGenerations = useCallback(async (projectId: string): Promise<ProjectGeneration[]> => {
     const { data } = await supabase
       .from("generations")
@@ -72,5 +92,5 @@ export function useProjects() {
     return (data as ProjectGeneration[]) || [];
   }, []);
 
-  return { projects, loading, refresh, create, remove, update, getGenerations };
+  return { projects, loading, refresh, create, remove, update, rename, getCounts, getGenerations };
 }
