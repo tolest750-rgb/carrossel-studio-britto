@@ -108,6 +108,37 @@ export default function Account() {
     }
   };
 
+  const changePlan = async (target: "mensal" | "anual") => {
+    const isUpgrade = subInfo?.plan_type === "mensal" && target === "anual";
+    const isDowngrade = subInfo?.plan_type === "anual" && target === "mensal";
+    const msg = isUpgrade
+      ? "UPGRADE PRO ANUAL\n\nMudança IMEDIATA. Stripe cobra o valor proporcional agora (crédito do mensal já pago é descontado).\n\nNovo compromisso de 12 meses começa hoje. Cancelar antes = multa de R$ 522.\n\nConfirmar upgrade?"
+      : isDowngrade
+        ? "DOWNGRADE PRO MENSAL\n\nMudança no fim do período pago atual. Você continua no anual até o vencimento, e na próxima cobrança passa pra R$ 203/mês.\n\nConfirmar downgrade?"
+        : "Trocar plano?";
+    if (!confirm(msg)) return;
+
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("change-plan", {
+        body: { environment, planType: target },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: isUpgrade ? "Upgrade efetuado" : "Downgrade agendado",
+        description: isUpgrade
+          ? "Você está no plano ANUAL. Cobrança proporcional realizada."
+          : `Vai virar MENSAL em ${data.effectiveAt ? new Date(data.effectiveAt).toLocaleDateString("pt-BR") : "fim do período"}.`,
+      });
+      await reload();
+    } catch (e: any) {
+      toast({ title: "Erro ao trocar plano", description: e.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const cancelSub = async () => {
     const planType = subInfo?.plan_type ?? "mensal";
     const fee = planType === "mensal" ? "R$ 203,00 (1 mês)"
@@ -310,6 +341,18 @@ export default function Account() {
                         )}
                       </div>
                       <div className="grid sm:grid-cols-2 gap-3">
+                        {subInfo?.plan_type === "mensal" && (
+                          <button onClick={() => changePlan("anual")} disabled={busy}
+                            className="border border-primary bg-primary/5 text-primary font-mono text-xs tracking-[2px] uppercase py-3 rounded-sm hover:bg-primary/10 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                            <RefreshCw className="w-3.5 h-3.5" /> Upgrade pro Anual (R$ 174/mês)
+                          </button>
+                        )}
+                        {subInfo?.plan_type === "anual" && (
+                          <button onClick={() => changePlan("mensal")} disabled={busy}
+                            className="border border-border2 text-foreground font-mono text-xs tracking-[2px] uppercase py-3 rounded-sm hover:bg-card transition disabled:opacity-50 flex items-center justify-center gap-2">
+                            <RefreshCw className="w-3.5 h-3.5" /> Downgrade pro Mensal
+                          </button>
+                        )}
                         <button onClick={openPortal} disabled={busy}
                           className="border border-primary text-primary font-mono text-xs tracking-[2px] uppercase py-3 rounded-sm hover:bg-primary/10 transition disabled:opacity-50 flex items-center justify-center gap-2">
                           <ExternalLink className="w-3.5 h-3.5" /> Atualizar cartão / Faturas
