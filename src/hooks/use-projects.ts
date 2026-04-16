@@ -7,6 +7,7 @@ export interface Project {
   name: string;
   script_data: any;
   parameters: any;
+  thumbnail_url: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root, .dark {
     --background: 0 0% 0%;
     --bg2: 210 100% 2%;
     --foreground: 146 100% 86%;
@@ -24,7 +24,7 @@
     --secondary-foreground: 152 100% 62%;
 
     --muted: 150 45% 20%;
-    --muted-foreground: 150 35% 32%;
+    --muted-foreground: 150 35% 60%;
 
     --accent: 187 100% 50%;
     --accent-foreground: 0 0% 0%;
@@ -62,6 +62,53 @@
     --sidebar-border: 152 60% 15%;
     --sidebar-ring: 152 100% 50%;
   }
+
+  .light {
+    --background: 0 0% 100%;
+    --bg2: 152 30% 96%;
+    --foreground: 170 80% 8%;
+
+    --card: 0 0% 99%;
+    --card-foreground: 170 80% 8%;
+    --card2: 152 25% 95%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 170 80% 8%;
+
+    --primary: 152 90% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 152 40% 92%;
+    --secondary-foreground: 170 80% 12%;
+
+    --muted: 152 20% 92%;
+    --muted-foreground: 170 15% 38%;
+
+    --accent: 187 90% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 80% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 152 25% 88%;
+    --border2: 152 25% 84%;
+    --input: 152 25% 84%;
+    --ring: 152 90% 32%;
+
+    --neon: 152 90% 32%;
+    --neon2: 155 90% 38%;
+    --cyan: 187 90% 35%;
+    --red: 0 80% 50%;
+
+    --sidebar-background: 0 0% 99%;
+    --sidebar-foreground: 170 80% 8%;
+    --sidebar-primary: 152 90% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 152 30% 92%;
+    --sidebar-accent-foreground: 170 80% 12%;
+    --sidebar-border: 152 25% 84%;
+    --sidebar-ring: 152 90% 32%;
+  }
 }
 
 @layer base {
@@ -72,13 +119,13 @@
     @apply bg-background text-foreground;
     font-family: var(--font-ui);
     font-weight: 400;
-    cursor: crosshair;
     overflow-x: hidden;
   }
+  .dark body { cursor: crosshair; }
 }
 
-/* CRT scan-line overlay */
-body::before {
+/* CRT scan-line overlay - only in dark mode */
+.dark body::before {
   content: '';
   position: fixed;
   inset: 0;
@@ -89,8 +136,7 @@ body::before {
   z-index: 9998;
 }
 
-/* CRT scanline sweep */
-body::after {
+.dark body::after {
   content: '';
   position: fixed;
   top: -100%;
@@ -115,9 +161,7 @@ body::after {
 @keyframes emFloat { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
 @keyframes hexPulse { 0%,100% { opacity: 0.3 } 50% { opacity: 0.7 } }
 @keyframes stepGlow { 0%,100% { box-shadow: none } 50% { box-shadow: 0 0 10px hsla(40,100%,50%,0.15) } }
-@keyframes faceRingSpin { to { transform: rotate(360deg) } }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 3px; height: 3px }
+::-webkit-scrollbar { width: 6px; height: 6px }
 ::-webkit-scrollbar-track { background: hsl(var(--background)) }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border2)); border-radius: 2px }

@@ -20,22 +20,36 @@ serve(async (req) => {
     switch (event.type) {
       case "customer.subscription.created":
       case "customer.subscription.updated": {
-        const sub = event.data.object;
+        const sub: any = event.data.object;
         const userId = sub.metadata?.userId;
         if (!userId) {
           console.error("No userId in subscription metadata");
           break;
         }
+        const item = sub.items?.data?.[0];
+        const priceId = item?.price?.metadata?.lovable_external_id || item?.price?.id || null;
+        const productId = item?.price?.product || null;
+        const planType = sub.metadata?.planType || null;
+        const committedUntil = sub.metadata?.committedUntil || null;
+        const periodStart = sub.current_period_start
+          ? new Date(sub.current_period_start * 1000).toISOString() : null;
         const periodEnd = sub.current_period_end
-          ? new Date(sub.current_period_end * 1000).toISOString()
-          : null;
+          ? new Date(sub.current_period_end * 1000).toISOString() : null;
+
         await supabase.from("subscriptions").upsert(
           {
             user_id: userId,
             stripe_subscription_id: sub.id,
             stripe_customer_id: sub.customer,
             status: sub.status,
+            plan_type: planType,
+            product_id: productId,
+            price_id: priceId,
+            current_period_start: periodStart,
             current_period_end: periodEnd,
+            cancel_at_period_end: sub.cancel_at_period_end || false,
+            committed_until: committedUntil,
+            environment: env,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "user_id" },
@@ -43,11 +57,30 @@ serve(async (req) => {
         break;
       }
       case "customer.subscription.deleted": {
-        const sub = event.data.object;
+        const sub: any = event.data.object;
         await supabase
           .from("subscriptions")
           .update({ status: "canceled", updated_at: new Date().toISOString() })
           .eq("stripe_subscription_id", sub.id);
+        break;
+      }
+      case "invoice.paid": {
+        const inv: any = event.data.object;
+        if (inv.metadata?.kind === "cancellation_fee") {
+          await supabase.from("cancellation_fees")
+            .update({ status: "paid", updated_at: new Date().toISOString() })
+            .eq("stripe_invoice_id", inv.id);
+        }
+        break;
+      }
+      case "invoice.payment_failed": {
+        const inv: any = event.data.object;
+        if (inv.metadata?.kind === "cancellation_fee") {
+          await supabase.from("cancellation_fees")
+            .update({ status: "failed", updated_at: new Date().toISOString() })
+            .eq("stripe_invoice_id", inv.id);
+        }
+        console.log("Payment failed:", inv.id);
         break;
       }
       default:
