@@ -199,10 +199,11 @@ export function buildPrompt(
 // ─── BUILD LAYOUT (accent only) ──────────────────────────────
 export function buildLayout(light: LightKey): { accent: string } {
   const ACC: Record<LightKey, string> = {
-    dramatic: "#00b4ff",
     warm: "#f5c842",
-    green: "#c8ff00",
-    moody: "#ffffff",
+    cold: "#00b4ff",
+    clean: "#ffffff",
+    neon: "#c8ff00",
+    custom: "#c8ff00",
   };
   return { accent: ACC[light] };
 }
