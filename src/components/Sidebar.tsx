@@ -1,649 +1,339 @@
 import { useState, useMemo, useEffect } from "react";
 import { useCarousel } from "@/lib/carousel-store";
-import type { HistoryEntry, FacePreset, LayoutPreset } from "@/lib/carousel-store";
+import { useProjects } from "@/hooks/use-projects";
 import { FaceUpload } from "./FaceUpload";
 import { LayoutRefUpload } from "./LayoutRefUpload";
-import { ChipGroup } from "./ChipGroup";
-import type { StyleKey, LightKey, FormatKey, ResKey } from "@/lib/parser";
+import { ApiKeyManager } from "./ApiKeyManager";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/hooks/use-toast";
+import {
+  KeyRound, Type, Palette, Wand2, FileText, Image as ImageIcon, Layout,
+  Folder, Plus, Trash2, Play, Square, FolderOpen, ChevronDown, ChevronRight,
+} from "lucide-react";
+import type { StyleKey, LightKey, FormatKey, FontKey, TypographyConfig } from "@/lib/parser";
 
-// ─── API CONFIG (legacy exports kept for compatibility) ──────
-export interface GeminiKeyEntry {
-  id: string;
-  name: string;
-  key: string;
-  addedAt: number;
-  failedAt?: number;
-}
-export interface ApiConfig {
-  geminiKeys: GeminiKeyEntry[];
-}
-export function loadApiConfig(): ApiConfig { return { geminiKeys: [] }; }
-export function saveApiConfig(_cfg: ApiConfig) {}
-export function markKeyFailed(cfg: ApiConfig, _keyId: string): ApiConfig { return cfg; }
-export function getOrderedGeminiKeys(_cfg: ApiConfig): GeminiKeyEntry[] { return []; }
+type Tab = "config" | "projects";
 
-// ─── PARSER VISUAL ────────────────────────────────────────────
-interface SlideBlock {
-  num: number;
-  titulo?: string;
-  subtitulo?: string;
-  cta?: string;
-  visual?: string;
-  design?: string;
-}
-function parseRawToBlocks(raw: string): SlideBlock[] {
-  if (!raw.trim()) return [];
-  const chunks = raw.split(/\n\s*---\s*\n/);
-  return chunks.map((chunk, i) => {
-    const get = (keys: string[]) => {
-      for (const key of keys) {
-        const re = new RegExp(
-          `(?:^|\\n)\\s*${key}\\s*:?\\s*\\n([\\s\\S]*?)(?=\\n\\s*(?:TÍTULO|TITULO|SUBTÍTULO|SUBTITULO|CALL TO ACTION|CTA|VISUAL|OBSERVAÇÃO|OBSERVACAO|$))`,
-          "i",
-        );
-        const m = chunk.match(re);
-        if (m) return m[1].trim();
-      }
-      for (const key of keys) {
-        const re = new RegExp(`(?:^|\\n)\\s*${key}\\s*:\\s*(.+)`, "i");
-        const m = chunk.match(re);
-        if (m) return m[1].trim();
-      }
-      return undefined;
-    };
-    return {
-      num: i + 1,
-      titulo: get(["TÍTULO", "TITULO", "TITLE"]),
-      subtitulo: get(["SUBTÍTULO", "SUBTITULO", "SUBTITLE"]),
-      cta: get(["CALL TO ACTION", "CTA"]),
-      visual: get(["VISUAL"]),
-      design: get(["OBSERVAÇÃO DE DESIGN", "OBSERVACAO DE DESIGN", "DESIGN"]),
-    };
-  });
+const STYLES: { key: StyleKey; label: string; desc: string }[] = [
+  { key: "ultra3d", label: "Ultra 3D", desc: "Render hiper-detalhado" },
+  { key: "cinematic", label: "Cinemático", desc: "Foto retrato realista" },
+  { key: "futuristic", label: "Futurista", desc: "Sci-fi neon" },
+  { key: "cleancorp", label: "Clean Corp", desc: "P&B minimalista" },
+];
+
+const LIGHTS: { key: LightKey; label: string }[] = [
+  { key: "warm", label: "Quente" },
+  { key: "cold", label: "Frio" },
+  { key: "clean", label: "Limpo" },
+  { key: "neon", label: "Neon" },
+  { key: "custom", label: "Custom" },
+];
+
+const FONTS: FontKey[] = ["rajdhani", "orbitron", "playfair", "inter", "bebas", "montserrat", "oswald", "space-grotesk"];
+
+const FORMATS: { key: FormatKey; label: string }[] = [
+  { key: "4:5", label: "4:5" },
+  { key: "9:16", label: "9:16" },
+  { key: "1:1", label: "1:1" },
+];
+
+function Section({ icon: Icon, title, children, defaultOpen = true }: any) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-border2/50">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-4 py-3 hover:bg-card/40 transition-colors group"
+      >
+        <Icon className="w-3.5 h-3.5 text-primary" />
+        <span className="font-mono text-[10px] tracking-[2px] uppercase text-foreground flex-1 text-left">{title}</span>
+        {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+      </button>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </div>
+  );
 }
 
-// ─── SIDEBAR ─────────────────────────────────────────────────
 export function Sidebar() {
-  const {
-    rawText,
-    setRawText,
-    style,
-    setStyle,
-    light,
-    setLight,
-    fmt,
-    setFmt,
-    res,
-    setRes,
-    isGenerating,
-    isStopping,
-    startGeneration,
-    stopGeneration,
-    history,
-    deleteHistory,
-    loadHistory,
-    facePresets,
-    saveFacePreset,
-    deleteFacePreset,
-    applyFacePreset,
-    layoutPresets,
-    saveLayoutPreset,
-    deleteLayoutPreset,
-    applyLayoutPreset,
-    faceDataUrl,
-    layoutRefDataUrl,
-  } = useCarousel();
+  const c = useCarousel();
+  const projects = useProjects();
+  const [tab, setTab] = useState<Tab>("config");
+  const [newProjectName, setNewProjectName] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"config" | "history">("config");
-  const [facePresetName, setFacePresetName] = useState("");
-  const [layoutPresetName, setLayoutPresetName] = useState("");
-  const [showFacePresets, setShowFacePresets] = useState(true);
-  const [showLayoutPresets, setShowLayoutPresets] = useState(true);
-  const [textMode, setTextMode] = useState<"edit" | "preview">("edit");
-  const [copied, setCopied] = useState(false);
-  const [todayCount, setTodayCount] = useState(() => {
-    const stored = localStorage.getItem("ai_usage");
-    if (!stored) return 0;
-    const data = JSON.parse(stored);
-    return data.date === new Date().toISOString().slice(0, 10) ? data.count : 0;
-  });
-  const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem("google_api_key") || "");
-  const [showKey, setShowKey] = useState(false);
+  const canGenerate = c.rawText.trim().length > 0 && !c.isGenerating;
 
-  // Listen for usage updates from gemini.ts
-  useEffect(() => {
-    const handler = () => {
-      const stored = localStorage.getItem("ai_usage");
-      if (!stored) return;
-      const data = JSON.parse(stored);
-      if (data.date === new Date().toISOString().slice(0, 10)) setTodayCount(data.count);
-    };
-    window.addEventListener("ai_usage_updated", handler);
-    return () => window.removeEventListener("ai_usage_updated", handler);
-  }, []);
-
-  // ── Text helpers ────────────────────────────────────────────
-  const canGenerate = rawText.trim().length > 0 && !isGenerating;
-  const slideBlocks = useMemo(() => parseRawToBlocks(rawText), [rawText]);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(rawText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-  const handleClear = () => {
-    if (!rawText.trim()) return;
-    if (window.confirm("Apagar todo o texto do roteiro?")) {
-      setRawText("");
-      setTextMode("edit");
+  const handleNewProject = async () => {
+    const name = newProjectName.trim() || `Carrossel ${new Date().toLocaleString("pt-BR")}`;
+    try {
+      const p = await projects.create(name);
+      if (p) {
+        c.setCurrentProjectId(p.id);
+        c.setRawText("");
+        setNewProjectName("");
+        toast({ title: "Projeto criado", description: name });
+      }
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
     }
   };
 
+  const handleDeleteProject = async (id: string, name: string) => {
+    if (!confirm(`Apagar projeto "${name}" e todas suas gerações?`)) return;
+    await projects.remove(id);
+    if (c.currentProjectId === id) c.setCurrentProjectId(null);
+    toast({ title: "Projeto apagado" });
+  };
+
   return (
-    <aside className="bg-popover border-r border-border2 flex flex-col sticky top-[60px] h-[calc(100vh-60px)] overflow-y-auto shadow-[2px_0_20px_hsl(var(--primary)/0.03)]">
+    <aside className="bg-popover border-r border-border2 flex flex-col sticky top-[60px] h-[calc(100vh-60px)] overflow-y-auto">
       {/* Tabs */}
-      <div className="flex border-b border-border2 shrink-0">
-        {(["config", "history"] as const).map((tab) => (
+      <div className="flex border-b border-border2 shrink-0 sticky top-0 bg-popover z-10">
+        {([
+          { k: "config", label: "Configuração", icon: Wand2 },
+          { k: "projects", label: "Projetos", icon: Folder },
+        ] as const).map(({ k, label, icon: Icon }) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 font-mono text-[9px] tracking-[2px] uppercase py-2.5 transition-all duration-200 ${
-              activeTab === tab
-                ? "text-primary border-b border-primary shadow-[0_1px_0_hsl(var(--primary))]"
-                : "text-muted-foreground hover:text-foreground"
+            key={k}
+            onClick={() => setTab(k)}
+            className={`flex-1 flex items-center justify-center gap-1.5 font-mono text-[10px] tracking-[2px] uppercase py-3 transition-all ${
+              tab === k
+                ? "text-primary border-b-2 border-primary bg-primary/5"
+                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent"
             }`}
           >
-            {tab === "config" ? "◈ CONFIG" : "◫ HISTÓRICO"}
+            <Icon className="w-3 h-3" /> {label}
           </button>
         ))}
       </div>
 
-      {activeTab === "config" && (
+      {tab === "config" && (
         <>
-          {/* ── AI Provider Status ──────────────────────── */}
-          <div className="p-4 border-b border-border2">
-            <div className="font-mono text-[9px] tracking-[2.5px] uppercase text-muted-foreground mb-2 flex items-center gap-2">
-              <span className="text-primary" style={{ textShadow: "0 0 6px hsl(var(--primary))" }}>⚡</span>
-              {googleApiKey ? "GOOGLE AI" : "LOVABLE AI"}
-              <span className="flex-1 h-px bg-gradient-to-r from-border2 to-transparent" />
-            </div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_6px_hsl(142_71%_45%)]" />
-              <span className="font-mono text-[9px] text-foreground tracking-[1px]">
-                {googleApiKey ? "NANO BANANA PRO · GRÁTIS" : "CONECTADO"}
+          {/* Project chip */}
+          {c.currentProjectId && (
+            <div className="px-4 py-2 bg-primary/5 border-b border-primary/20 flex items-center gap-2">
+              <FolderOpen className="w-3 h-3 text-primary" />
+              <span className="text-[10px] font-mono text-primary tracking-wider truncate flex-1">
+                {projects.projects.find((p) => p.id === c.currentProjectId)?.name || "Projeto atual"}
               </span>
+              <button
+                onClick={() => { c.setCurrentProjectId(null); c.setRawText(""); }}
+                className="text-[10px] text-muted-foreground hover:text-destructive"
+              >×</button>
             </div>
-            <div className="font-mono text-[8px] text-muted-foreground tracking-[0.5px] mb-2">
-              Imagens geradas hoje: <span className="text-primary">{todayCount}</span>
-            </div>
+          )}
 
-            {/* Google API Key input */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex gap-1">
-                <input
-                  type={showKey ? "text" : "password"}
-                  value={googleApiKey}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setGoogleApiKey(val);
-                    if (val.trim()) {
-                      localStorage.setItem("google_api_key", val.trim());
-                    } else {
-                      localStorage.removeItem("google_api_key");
-                    }
-                  }}
-                  placeholder="Google API Key..."
-                  className="flex-1 bg-card border border-border2 rounded-sm font-mono text-[10px] px-2 py-1.5 text-foreground outline-none focus:border-primary placeholder:text-muted-foreground"
-                />
-                <button
-                  onClick={() => setShowKey((v) => !v)}
-                  className="bg-card border border-border2 rounded-sm font-mono text-[8px] px-1.5 text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
-                  title={showKey ? "Ocultar" : "Mostrar"}
-                >
-                  {showKey ? "◉" : "◎"}
-                </button>
-                {googleApiKey && (
-                  <button
-                    onClick={() => {
-                      setGoogleApiKey("");
-                      localStorage.removeItem("google_api_key");
-                    }}
-                    className="bg-card border border-border2 rounded-sm font-mono text-[8px] px-1.5 text-destructive hover:border-destructive transition-colors"
-                    title="Remover key"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <a
-                href="https://aistudio.google.com/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-mono text-[8px] text-primary hover:underline tracking-[0.5px]"
-              >
-                🔑 Obter key grátis no Google AI Studio →
-              </a>
-            </div>
-          </div>
+          <Section icon={KeyRound} title="API Key & Modelo">
+            <ApiKeyManager onModelChange={c.setSelectedModel} />
+          </Section>
 
-          {/* ── Face Upload + Presets ───────────────────────── */}
-          <div className="border-b border-border2">
+          <Section icon={ImageIcon} title="Rosto de Referência" defaultOpen={false}>
             <FaceUpload />
-            <div className="px-4 pb-3 flex flex-col gap-1.5">
-              {faceDataUrl && (
-                <div className="flex gap-1.5">
-                  <input
-                    value={facePresetName}
-                    onChange={(e) => setFacePresetName(e.target.value)}
-                    placeholder="Nome do preset..."
-                    className="flex-1 bg-card border border-border2 rounded-sm font-mono text-[10px] px-2 py-1 text-foreground outline-none focus:border-primary placeholder:text-muted-foreground"
-                  />
-                  <button
-                    onClick={() => {
-                      if (facePresetName.trim()) {
-                        saveFacePreset(facePresetName.trim());
-                        setFacePresetName("");
-                      }
-                    }}
-                    className="bg-transparent border border-primary/50 rounded-sm text-primary font-mono text-[8px] tracking-[1px] px-2 py-1 hover:bg-primary/10 transition-colors"
-                  >
-                    SALVAR
-                  </button>
-                </div>
-              )}
-              {facePresets.length > 0 && (
-                <>
-                  <button
-                    onClick={() => setShowFacePresets((v) => !v)}
-                    className="text-left font-mono text-[8px] tracking-[1px] text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {showFacePresets ? "▾" : "▸"} FACE PRESETS ({facePresets.length})
-                  </button>
-                  {showFacePresets && (
-                    <div className="flex flex-col gap-1">
-                      {facePresets.map((p) => (
-                        <div
-                          key={p.id}
-                          onClick={() => applyFacePreset(p)}
-                          title={`Usar: ${p.name}`}
-                          className="flex items-center gap-2 bg-card border border-border2 rounded-sm p-1.5 cursor-pointer hover:border-primary hover:bg-primary/[0.04] transition-all duration-150 group/fp"
-                        >
-                          <img
-                            src={p.dataUrl}
-                            className="w-6 h-6 rounded-full object-cover border border-primary/30 group-hover/fp:border-primary transition-colors"
-                          />
-                          <span className="flex-1 font-mono text-[9px] text-foreground truncate">{p.name}</span>
-                          <span className="font-mono text-[7px] text-primary opacity-0 group-hover/fp:opacity-100 transition-opacity tracking-[1px]">
-                            USAR ↵
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteFacePreset(p.id);
-                            }}
-                            className="font-mono text-[8px] text-muted-foreground hover:text-destructive transition-colors ml-1"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+          </Section>
 
-          {/* ── Layout Ref + Presets ────────────────────────── */}
-          <div className="border-b border-border2">
+          <Section icon={Layout} title="Layout de Referência" defaultOpen={false}>
             <LayoutRefUpload />
-            <div className="px-4 pb-3 flex flex-col gap-1.5">
-              {layoutRefDataUrl && (
-                <div className="flex gap-1.5">
-                  <input
-                    value={layoutPresetName}
-                    onChange={(e) => setLayoutPresetName(e.target.value)}
-                    placeholder="Nome do preset..."
-                    className="flex-1 bg-card border border-border2 rounded-sm font-mono text-[10px] px-2 py-1 text-foreground outline-none focus:border-primary placeholder:text-muted-foreground"
-                  />
-                  <button
-                    onClick={() => {
-                      if (layoutPresetName.trim()) {
-                        saveLayoutPreset(layoutPresetName.trim());
-                        setLayoutPresetName("");
-                      }
-                    }}
-                    className="bg-transparent border border-primary/50 rounded-sm text-primary font-mono text-[8px] tracking-[1px] px-2 py-1 hover:bg-primary/10 transition-colors"
-                  >
-                    SALVAR
-                  </button>
-                </div>
-              )}
-              {layoutPresets.length > 0 && (
-                <>
-                  <button
-                    onClick={() => setShowLayoutPresets((v) => !v)}
-                    className="text-left font-mono text-[8px] tracking-[1px] text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    {showLayoutPresets ? "▾" : "▸"} LAYOUT PRESETS ({layoutPresets.length})
-                  </button>
-                  {showLayoutPresets && (
-                    <div className="flex flex-col gap-1">
-                      {layoutPresets.map((p) => (
-                        <div
-                          key={p.id}
-                          onClick={() => applyLayoutPreset(p)}
-                          title={`Usar: ${p.name}`}
-                          className="flex items-center gap-2 bg-card border border-border2 rounded-sm p-1.5 cursor-pointer hover:border-primary hover:bg-primary/[0.04] transition-all duration-150 group/lp"
-                        >
-                          <img
-                            src={p.dataUrl}
-                            className="w-8 h-8 object-cover rounded-sm border border-primary/30 group-hover/lp:border-primary transition-colors"
-                          />
-                          <span className="flex-1 font-mono text-[9px] text-foreground truncate">{p.name}</span>
-                          <span className="font-mono text-[7px] text-primary opacity-0 group-hover/lp:opacity-100 transition-opacity tracking-[1px]">
-                            USAR ↵
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteLayoutPreset(p.id);
-                            }}
-                            className="font-mono text-[8px] text-muted-foreground hover:text-destructive transition-colors ml-1"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+          </Section>
 
-          {/* ── Carousel Data ───────────────────────────────── */}
-          <div className="p-4 border-b border-border relative group">
-            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-transparent transition-all duration-300 group-hover:bg-primary group-hover:shadow-[0_0_8px_hsl(var(--primary))]" />
-            <div className="font-mono text-[9px] tracking-[2.5px] uppercase text-muted-foreground mb-2 flex items-center gap-2">
-              <span className="text-primary" style={{ textShadow: "0 0 6px hsl(var(--primary))" }}>
-                ◈
-              </span>
-              CAROUSEL_DATA
-              {slideBlocks.length > 0 && (
-                <span className="font-mono text-[7px] bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded-sm">
-                  {slideBlocks.length} SL
-                </span>
-              )}
-              <span className="flex-1 h-px bg-gradient-to-r from-border2 to-transparent" />
+          <Section icon={FileText} title="Roteiro do Carrossel">
+            <textarea
+              value={c.rawText}
+              onChange={(e) => c.setRawText(e.target.value)}
+              placeholder="Cole o roteiro... (separe slides com ---)"
+              className="w-full bg-card border border-border2 rounded-sm font-mono text-[11px] px-2.5 py-2 text-foreground outline-none focus:border-primary placeholder:text-muted-foreground min-h-[180px] resize-y leading-relaxed"
+            />
+            <div className="text-[9px] font-mono text-muted-foreground mt-1.5 tracking-wider">
+              Use TÍTULO / SUBTÍTULO / CTA / VISUAL / OBSERVAÇÃO
             </div>
+          </Section>
 
-            {rawText.trim().length > 0 && (
-              <div className="flex gap-1 mb-2">
-                {(["edit", "preview"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setTextMode(mode)}
-                    className={`flex-1 font-mono text-[8px] tracking-[1px] py-1 rounded-sm border transition-all duration-150 ${textMode === mode ? "bg-primary/10 border-primary/40 text-primary" : "bg-card border-border2 text-muted-foreground hover:border-primary/30 hover:text-foreground"}`}
-                  >
-                    {mode === "edit" ? "✎ EDITAR" : "◧ PREVIEW"}
-                  </button>
-                ))}
+          <Section icon={Palette} title="Estilo Visual">
+            <div className="grid grid-cols-2 gap-1.5">
+              {STYLES.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => c.setStyle(s.key)}
+                  className={`text-left px-2.5 py-2 rounded-sm border transition-all font-mono ${
+                    c.style === s.key
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border2 bg-card text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  <div className="text-[10px] tracking-wider uppercase font-semibold">{s.label}</div>
+                  <div className="text-[8px] opacity-70 mt-0.5">{s.desc}</div>
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          <Section icon={Wand2} title="Iluminação">
+            <div className="grid grid-cols-5 gap-1 mb-2">
+              {LIGHTS.map((l) => (
+                <button
+                  key={l.key}
+                  onClick={() => c.setLight(l.key)}
+                  className={`px-1 py-1.5 rounded-sm border text-[9px] font-mono uppercase tracking-wider transition-all ${
+                    c.light === l.key
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border2 bg-card text-muted-foreground hover:border-primary/50"
+                  }`}
+                >{l.label}</button>
+              ))}
+            </div>
+            {c.light === "neon" && (
+              <div className="flex items-center gap-2 mt-2 bg-card border border-border2 rounded-sm px-2 py-1.5">
+                <label className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground flex-1">Cor Neon</label>
+                <input
+                  type="color"
+                  value={c.lightConfig.neonColor || "#c8ff00"}
+                  onChange={(e) => c.setLightConfig({ ...c.lightConfig, light: "neon", neonColor: e.target.value })}
+                  className="w-7 h-7 rounded-sm border border-border2 bg-transparent cursor-pointer"
+                />
               </div>
             )}
-
-            {textMode === "edit" && (
-              <textarea
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                placeholder="Cole aqui o conteúdo do carousel separado por ---"
-                className="w-full bg-card border border-border2 rounded-sm text-foreground font-mono text-[11px] py-2 px-3 outline-none transition-all duration-200 caret-primary resize-y min-h-[120px] leading-relaxed focus:border-primary focus:shadow-[0_0_0_1px_hsl(var(--primary)/0.2),0_0_16px_hsl(var(--primary)/0.06),inset_0_0_8px_hsl(var(--primary)/0.04)] focus:text-neon2 placeholder:text-muted-foreground"
-              />
-            )}
-
-            {textMode === "preview" && slideBlocks.length > 0 && (
-              <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
-                {slideBlocks.map((sl) => (
-                  <div
-                    key={sl.num}
-                    className="bg-card border border-border2 rounded-sm overflow-hidden hover:border-primary/20 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 px-2.5 py-1.5 bg-background/60 border-b border-border2">
-                      <span
-                        className="font-mono text-[8px] tracking-[2px] text-primary border border-primary/30 px-1.5 py-0.5 rounded-sm shrink-0"
-                        style={{ textShadow: "0 0 6px hsl(var(--primary))" }}
-                      >
-                        SL_{String(sl.num).padStart(2, "0")}
-                      </span>
-                      {sl.titulo && (
-                        <span className="font-mono text-[9px] text-foreground font-semibold truncate">{sl.titulo}</span>
-                      )}
-                    </div>
-                    <div className="px-2.5 py-2 flex flex-col gap-1.5">
-                      {sl.subtitulo && <PreviewField label="SUB" value={sl.subtitulo} />}
-                      {sl.cta && <PreviewField label="CTA" value={sl.cta} accent />}
-                      {sl.visual && <PreviewField label="VIS" value={sl.visual} muted truncate />}
-                      {sl.design && <PreviewField label="DSG" value={sl.design} muted truncate />}
-                    </div>
+            {c.light === "custom" && (
+              <div className="space-y-1.5 mt-2">
+                {[0, 1].map((i) => (
+                  <div key={i} className="flex items-center gap-2 bg-card border border-border2 rounded-sm px-2 py-1.5">
+                    <label className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground flex-1">
+                      Cor {i + 1}
+                    </label>
+                    <input
+                      type="color"
+                      value={c.lightConfig.customColors?.[i] || (i === 0 ? "#ff00aa" : "#00b4ff")}
+                      onChange={(e) => {
+                        const next: [string, string] = [
+                          c.lightConfig.customColors?.[0] || "#ff00aa",
+                          c.lightConfig.customColors?.[1] || "#00b4ff",
+                        ];
+                        next[i] = e.target.value;
+                        c.setLightConfig({ ...c.lightConfig, light: "custom", customColors: next });
+                      }}
+                      className="w-7 h-7 rounded-sm border border-border2 bg-transparent cursor-pointer"
+                    />
                   </div>
                 ))}
               </div>
             )}
+          </Section>
 
-            <div className="flex gap-1.5 mt-2">
-              <button
-                onClick={handleCopy}
-                disabled={!rawText.trim()}
-                className="flex-1 bg-card border border-border2 rounded-sm text-muted-foreground font-mono text-[8px] tracking-[1px] py-1.5 transition-all duration-200 hover:border-primary hover:text-primary hover:shadow-[0_0_6px_hsl(var(--neon-dim)/0.07)] disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                {copied ? "✓ COPIADO" : "⎘ COPIAR"}
-              </button>
-              <button
-                onClick={handleClear}
-                disabled={!rawText.trim()}
-                className="flex-1 bg-card border border-border2 rounded-sm text-muted-foreground font-mono text-[8px] tracking-[1px] py-1.5 transition-all duration-200 hover:border-destructive hover:text-destructive disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                ✕ APAGAR
-              </button>
-            </div>
-            <div className="font-mono text-[8px] text-muted-foreground mt-1.5 leading-relaxed tracking-[0.5px]">
-              Separe slides com{" "}
-              <code className="bg-card-2 border border-border2 px-1 py-0.5 rounded-sm font-mono text-[9px] text-neon2">
-                ---
-              </code>
-              . Campos: TÍTULO, SUBTÍTULO, CTA, VISUAL
-            </div>
-          </div>
+          <Section icon={Type} title="Tipografia">
+            {(["title", "subtitle", "cta"] as const).map((k) => (
+              <div key={k} className="mb-2">
+                <label className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground block mb-1">
+                  {k === "title" ? "Título" : k === "subtitle" ? "Subtítulo" : "CTA"}
+                </label>
+                <select
+                  value={c.typography[k]}
+                  onChange={(e) => c.setTypography({ ...c.typography, [k]: e.target.value as FontKey })}
+                  className="w-full bg-card border border-border2 rounded-sm font-mono text-[10px] px-2 py-1.5 text-foreground outline-none focus:border-primary"
+                >
+                  {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+            ))}
+          </Section>
 
-          {/* ── Parameters ──────────────────────────────────── */}
-          <div className="p-4 border-b border-border relative group">
-            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-transparent transition-all duration-300 group-hover:bg-primary group-hover:shadow-[0_0_8px_hsl(var(--primary))]" />
-            <div className="font-mono text-[9px] tracking-[2.5px] uppercase text-muted-foreground mb-2.5 flex items-center gap-2">
-              <span className="text-primary" style={{ textShadow: "0 0 6px hsl(var(--primary))" }}>
-                ◈
-              </span>
-              PARAMETERS
-              <span className="flex-1 h-px bg-gradient-to-r from-border2 to-transparent" />
+          <Section icon={Layout} title="Formato">
+            <div className="grid grid-cols-3 gap-1.5">
+              {FORMATS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => c.setFmt(f.key)}
+                  className={`py-2 rounded-sm border text-[10px] font-mono uppercase tracking-wider transition-all ${
+                    c.fmt === f.key
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border2 bg-card text-muted-foreground hover:border-primary/50"
+                  }`}
+                >{f.label}</button>
+              ))}
             </div>
-            <ChipGroup
-              label="STYLE"
-              value={style}
-              onChange={(v) => setStyle(v as StyleKey)}
-              options={[
-                { value: "cinematic", icon: "🎬", label: "CINE" },
-                { value: "corporate", icon: "💼", label: "CORP" },
-                { value: "futuristic", icon: "🔮", label: "FUTR" },
-                { value: "editorial", icon: "📰", label: "EDIT" },
-              ]}
-            />
-            <ChipGroup
-              label="LIGHTING"
-              value={light}
-              onChange={(v) => setLight(v as LightKey)}
-              options={[
-                { value: "dramatic", icon: "⚡", label: "DRAM" },
-                { value: "warm", icon: "🌅", label: "WARM" },
-                { value: "green", icon: "💚", label: "NEON" },
-                { value: "moody", icon: "🌑", label: "MOOD" },
-              ]}
-            />
-            <ChipGroup
-              label="FORMAT"
-              value={fmt}
-              onChange={(v) => setFmt(v as FormatKey)}
-              options={[
-                { value: "4:5", icon: "▯", label: "4:5" },
-                { value: "9:16", icon: "▮", label: "9:16" },
-                { value: "1:1", icon: "◻", label: "1:1" },
-              ]}
-            />
-            <ChipGroup
-              label="RESOLUTION"
-              value={res}
-              onChange={(v) => setRes(v as ResKey)}
-              options={[
-                { value: "1K", label: "1K" },
-                { value: "2K", label: "2K" },
-                { value: "4K", label: "4K" },
-              ]}
-            />
-          </div>
+            <div className="mt-2 text-[9px] font-mono text-muted-foreground tracking-wider">
+              Resolução fixa: <span className="text-primary">4K</span>
+            </div>
+          </Section>
 
-          {/* ── Generate / Stop ─────────────────────────────── */}
-          <div className="p-4 flex flex-col gap-2">
-            <button
-              onClick={startGeneration}
-              disabled={!canGenerate}
-              className="w-full bg-transparent border border-primary rounded-sm text-primary font-logo text-[11px] font-bold tracking-[3px] uppercase py-3.5 cursor-pointer transition-all duration-300 flex items-center justify-center gap-2.5 relative overflow-hidden shadow-[0_0_16px_hsl(var(--primary)/0.12),inset_0_0_16px_hsl(var(--primary)/0.04)] hover:bg-primary/[0.08] hover:shadow-[0_0_28px_hsl(var(--primary)/0.25),inset_0_0_24px_hsl(var(--primary)/0.08)] hover:-translate-y-px disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
-              style={{ textShadow: "0 0 10px hsl(var(--primary))" }}
-            >
-              {isGenerating && (
-                <div className="w-3.5 h-3.5 border border-primary/30 border-t-primary rounded-full animate-spin shrink-0" />
-              )}
-              <span>{isGenerating ? "PROCESSANDO..." : "◈ INICIAR GERAÇÃO"}</span>
-            </button>
-            {isGenerating && (
-              <button
-                onClick={stopGeneration}
-                disabled={isStopping}
-                className="w-full bg-transparent border border-destructive/60 rounded-sm text-destructive font-mono text-[10px] tracking-[2px] uppercase py-2 cursor-pointer transition-all duration-200 hover:bg-destructive/10 hover:border-destructive disabled:opacity-40"
+          {/* Sticky generate button */}
+          <div className="sticky bottom-0 p-4 bg-popover border-t border-border2 z-10">
+            {!c.isGenerating ? (
+              <Button
+                onClick={c.startGeneration}
+                disabled={!canGenerate}
+                className="w-full font-mono uppercase tracking-[2px] text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
               >
-                {isStopping ? "PARANDO..." : "◼ PARAR GERAÇÃO"}
-              </button>
+                <Play className="w-3.5 h-3.5 mr-1.5" /> Gerar Carrossel
+              </Button>
+            ) : (
+              <Button
+                onClick={c.stopGeneration}
+                disabled={c.isStopping}
+                variant="destructive"
+                className="w-full font-mono uppercase tracking-[2px] text-xs"
+              >
+                <Square className="w-3.5 h-3.5 mr-1.5" /> {c.isStopping ? "Parando..." : "Parar"}
+              </Button>
             )}
           </div>
         </>
       )}
 
-      {/* ── Histórico ───────────────────────────────────────── */}
-      {activeTab === "history" && (
-        <div className="flex flex-col gap-0 flex-1">
-          {history.length === 0 ? (
-            <div className="flex flex-col items-center justify-center flex-1 gap-2 text-muted-foreground p-8">
-              <span className="text-3xl opacity-20">◫</span>
-              <span className="font-mono text-[9px] tracking-[2px]">NENHUM HISTÓRICO</span>
+      {tab === "projects" && (
+        <div className="p-4 space-y-3">
+          <div className="flex gap-1.5">
+            <Input
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              placeholder="Nome do projeto..."
+              onKeyDown={(e) => e.key === "Enter" && handleNewProject()}
+              className="h-8 text-xs font-mono bg-card border-border2"
+            />
+            <Button onClick={handleNewProject} size="sm" className="h-8">
+              <Plus className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+
+          {projects.loading ? (
+            <div className="text-[10px] font-mono text-muted-foreground text-center py-4">Carregando...</div>
+          ) : projects.projects.length === 0 ? (
+            <div className="text-[10px] font-mono text-muted-foreground text-center py-6 border border-dashed border-border2 rounded-sm">
+              Nenhum projeto ainda.<br />Crie seu primeiro acima.
             </div>
           ) : (
-            history.map((entry) => (
-              <HistoryCard key={entry.id} entry={entry} onLoad={loadHistory} onDelete={deleteHistory} />
-            ))
+            <div className="space-y-1.5">
+              {projects.projects.map((p) => {
+                const active = p.id === c.currentProjectId;
+                return (
+                  <div
+                    key={p.id}
+                    className={`group border rounded-sm p-2.5 transition-all cursor-pointer ${
+                      active
+                        ? "border-primary bg-primary/10 shadow-[0_0_8px_hsl(var(--primary)/0.15)]"
+                        : "border-border2 bg-card hover:border-primary/50"
+                    }`}
+                    onClick={() => { c.loadProject(p.id); setTab("config"); }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Folder className={`w-3.5 h-3.5 mt-0.5 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-mono text-foreground truncate">{p.name}</div>
+                        <div className="text-[9px] font-mono text-muted-foreground">
+                          {new Date(p.updated_at).toLocaleDateString("pt-BR")}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id, p.name); }}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}
     </aside>
-  );
-}
-
-// ─── PREVIEW FIELD ────────────────────────────────────────────
-function PreviewField({
-  label,
-  value,
-  accent,
-  muted,
-  truncate,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-  muted?: boolean;
-  truncate?: boolean;
-}) {
-  return (
-    <div className="flex gap-1.5 items-start">
-      <span
-        className={`font-mono text-[7px] tracking-[1px] py-0.5 px-1 rounded-sm border shrink-0 mt-0.5 ${accent ? "bg-primary/10 text-primary border-primary/25" : "bg-card-2 text-muted-foreground border-border2"}`}
-      >
-        {label}
-      </span>
-      <span
-        className={`font-mono text-[9px] leading-relaxed ${truncate ? "line-clamp-2" : ""} ${muted ? "text-muted-foreground" : accent ? "text-primary" : "text-foreground"}`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-// ─── HISTORY CARD ─────────────────────────────────────────────
-function HistoryCard({
-  entry,
-  onLoad,
-  onDelete,
-}: {
-  entry: HistoryEntry;
-  onLoad: (e: HistoryEntry) => void;
-  onDelete: (id: string) => Promise<void>;
-}) {
-  const [deleting, setDeleting] = useState(false);
-  const date = new Date(entry.createdAt).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return (
-    <div className="border-b border-border2 p-3 flex gap-2.5 hover:bg-card/40 transition-colors">
-      {entry.thumbUrl && (
-        <img src={entry.thumbUrl} className="w-12 h-[60px] object-cover rounded-sm border border-border2 shrink-0" />
-      )}
-      <div className="flex flex-col gap-1 flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="font-mono text-[8px] text-muted-foreground">{date}</span>
-          <span className="font-mono text-[7px] bg-primary/10 text-primary border border-primary/20 px-1 rounded-sm">
-            {entry.slideCount} slides
-          </span>
-          <span className="font-mono text-[7px] bg-card-2 border border-border2 text-muted-foreground px-1 rounded-sm">
-            {entry.fmt}
-          </span>
-        </div>
-        <p className="font-mono text-[9px] text-foreground leading-relaxed line-clamp-2 break-words">
-          {entry.rawText.slice(0, 80)}…
-        </p>
-        <div className="flex gap-1 mt-0.5">
-          <button
-            onClick={() => onLoad(entry)}
-            className="font-mono text-[8px] tracking-[1px] bg-card border border-border2 rounded-sm px-2 py-0.5 text-foreground hover:border-primary hover:text-primary transition-colors"
-          >
-            ↩ CARREGAR
-          </button>
-          <button
-            onClick={() => navigator.clipboard.writeText(entry.rawText)}
-            className="font-mono text-[8px] tracking-[1px] bg-card border border-border2 rounded-sm px-2 py-0.5 text-foreground hover:border-primary hover:text-primary transition-colors"
-          >
-            ⎘ COPIAR
-          </button>
-          <button
-            onClick={async () => {
-              setDeleting(true);
-              await onDelete(entry.id);
-            }}
-            disabled={deleting}
-            className="font-mono text-[8px] tracking-[1px] bg-card border border-border2 rounded-sm px-2 py-0.5 text-destructive hover:border-destructive transition-colors disabled:opacity-40"
-          >
-            {deleting ? "..." : "✕"}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
