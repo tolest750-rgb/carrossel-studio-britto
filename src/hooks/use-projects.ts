@@ -92,5 +92,5 @@ export function useProjects() {
     return (data as ProjectGeneration[]) || [];
   }, []);
 
-  return { projects, loading, refresh, create, remove, update, getGenerations };
+  return { projects, loading, refresh, create, remove, update, rename, getCounts, getGenerations };
 }
