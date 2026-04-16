@@ -7,8 +7,9 @@ interface EdgeResult {
   imageUrl?: string;
   error?: string;
   isRetryable?: boolean;
-  creditsExhausted?: boolean;
   rateLimited?: boolean;
+  needsKey?: boolean;
+  paywall?: boolean;
 }
 
 export interface GeminiResult {
@@ -16,32 +17,27 @@ export interface GeminiResult {
   finalPrompt: string;
 }
 
-const MAX_CLIENT_RETRIES = 3;
+const MAX_CLIENT_RETRIES = 2;
 
-function incrementTodayCount() {
-  const today = new Date().toISOString().slice(0, 10);
-  const stored = localStorage.getItem("ai_usage");
-  let data = stored ? JSON.parse(stored) : { date: today, count: 0 };
-  if (data.date !== today) data = { date: today, count: 0 };
-  data.count++;
-  localStorage.setItem("ai_usage", JSON.stringify(data));
-  window.dispatchEvent(new Event("ai_usage_updated"));
-}
-
-async function callEdgeFunction(promptText: string, faceB64?: string): Promise<EdgeResult> {
-  const googleApiKey = localStorage.getItem("google_api_key") || undefined;
-  const body: Record<string, string | undefined> = { prompt: promptText, faceB64, googleApiKey };
-  const result = await supabase.functions.invoke("generate-image", { body });
-
+async function callEdgeFunction(prompt: string, faceB64?: string, model?: string): Promise<EdgeResult> {
+  const result = await supabase.functions.invoke("generate-image", {
+    body: { prompt, faceB64, model },
+  });
   if (result.error) {
-    const msg = typeof result.error === "string" ? result.error : result.error.message || "Edge Function error";
-    return { error: msg, isRetryable: true };
+    return {
+      error: typeof result.error === "string" ? result.error : result.error.message || "Edge Function error",
+      isRetryable: true,
+    };
   }
-
   return result.data as EdgeResult;
 }
 
-export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: string): Promise<GeminiResult> {
+export async function callGemini(
+  sl: ProcessedSlide,
+  varIdx: number,
+  faceB64: string,
+  model?: string,
+): Promise<GeminiResult> {
   const promptText = [
     sl.prompt.pos + VAR_HINTS[varIdx],
     "",
@@ -54,35 +50,31 @@ export async function callGemini(sl: ProcessedSlide, varIdx: number, faceB64: st
   const sendFace = sl.useFaceRef && faceB64 ? faceB64 : undefined;
 
   for (let attempt = 0; attempt <= MAX_CLIENT_RETRIES; attempt++) {
-    const result = await callEdgeFunction(promptText, sendFace);
+    const result = await callEdgeFunction(promptText, sendFace, model);
 
-    if (result.creditsExhausted) {
+    if (result.paywall) {
       toast({
-        title: "⚠️ Créditos esgotados",
-        description: "Seus créditos de IA acabaram. Adicione mais créditos nas configurações do workspace.",
+        title: "Assinatura inativa",
+        description: "Acesse a página de planos para assinar.",
         variant: "destructive",
       });
-      throw new Error("Créditos de IA esgotados");
+      throw new Error("PAYWALL");
     }
-
-    if (result.rateLimited) {
+    if (result.needsKey) {
       toast({
-        title: "⏳ Rate limit",
-        description: "Muitas requisições. Aguarde alguns segundos...",
+        title: "Chave Google API necessária",
+        description: "Configure sua chave em Configurações.",
+        variant: "destructive",
       });
+      throw new Error("NEEDS_KEY");
     }
 
-    if (result.imageUrl) {
-      incrementTodayCount();
-      return { imageUrl: result.imageUrl, finalPrompt: promptText };
-    }
+    if (result.imageUrl) return { imageUrl: result.imageUrl, finalPrompt: promptText };
 
     if (!result.isRetryable || attempt === MAX_CLIENT_RETRIES) {
-      throw new Error(result.error || "Erro desconhecido na geração de imagem");
+      throw new Error(result.error || "Erro desconhecido na geração");
     }
-
     await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
   }
-
   throw new Error("Falha após múltiplas tentativas");
 }
