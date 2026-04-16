@@ -60,6 +60,32 @@ export function Sidebar() {
   const projects = useProjects();
   const [tab, setTab] = useState<Tab>("config");
   const [newProjectName, setNewProjectName] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (tab === "projects") {
+      projects.getCounts().then(setCounts);
+    }
+  }, [tab, projects.projects.length]);
+
+  const startRename = (id: string, currentName: string) => {
+    setRenamingId(id);
+    setRenameValue(currentName);
+  };
+
+  const commitRename = async () => {
+    if (renamingId) {
+      try {
+        await projects.rename(renamingId, renameValue);
+        toast({ title: "Projeto renomeado" });
+      } catch (e: any) {
+        toast({ title: "Erro", description: e.message, variant: "destructive" });
+      }
+    }
+    setRenamingId(null);
+  };
 
   const canGenerate = c.rawText.trim().length > 0 && !c.isGenerating;
 
