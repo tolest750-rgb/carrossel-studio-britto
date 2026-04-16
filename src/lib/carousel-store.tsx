@@ -156,9 +156,9 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
   const [layoutRefDataUrl, setLayoutRefDataUrl] = useState("");
   const [layoutRefName, setLayoutRefName] = useState("");
   const [style, setStyle] = useState<StyleKey>("cinematic");
-  const [light, setLight] = useState<LightKey>("dramatic");
+  const [light, setLight] = useState<LightKey>("warm");
   const [fmt, setFmt] = useState<FormatKey>("4:5");
-  const [res, setRes] = useState<ResKey>("2K");
+  const [res, setRes] = useState<ResKey>("4K");
   const [rawText, setRawText] = useState("");
   const [slides, setSlides] = useState<ProcessedSlide[]>([]);
   const [composedBlobs, setComposedBlobs] = useState<Record<number, (Blob | null)[]>>({});
