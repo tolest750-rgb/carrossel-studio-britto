@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { useTheme } from "@/lib/theme";
-import { Sun, Moon, Check, Sparkles, Bot, Layers, Zap, ShieldCheck } from "lucide-react";
+import { Sun, Moon, Check, Sparkles, Bot, Layers, Zap, ShieldCheck, TrendingUp } from "lucide-react";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -34,6 +34,15 @@ export default function Auth() {
           },
         });
         if (error) throw error;
+        // Fire welcome email (best-effort, won't block UX)
+        supabase.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "welcome",
+            recipientEmail: email,
+            idempotencyKey: `welcome-${email}-${Date.now()}`,
+            templateData: { name: name || email.split("@")[0] },
+          },
+        }).catch(() => {});
         toast({ title: "Conta criada!", description: "Faça login pra escolher seu plano." });
         setMode("login");
       } else if (mode === "login") {
@@ -56,129 +65,217 @@ export default function Auth() {
   };
 
   return (
-    <main className="min-h-screen bg-background relative">
+    <main className="h-screen overflow-hidden bg-background relative">
       <button
         onClick={toggle}
-        className="absolute top-4 right-4 z-50 p-2 border border-border2 rounded-sm text-muted-foreground hover:text-primary hover:border-primary transition"
+        className="absolute top-4 right-4 z-50 p-2 border border-border2 rounded-sm text-muted-foreground hover:text-primary hover:border-primary transition bg-background/60 backdrop-blur-sm"
         aria-label="Trocar tema"
       >
         {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
 
-      <div className="grid lg:grid-cols-2 min-h-screen">
-        {/* LEFT: Sales */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-card via-background to-card border-b lg:border-b-0 lg:border-r border-border2 px-6 lg:px-12 py-12 lg:py-16 flex items-center">
-          <div className="absolute inset-0 opacity-[0.04] pointer-events-none"
-            style={{ backgroundImage: "radial-gradient(circle at 25% 30%, hsl(var(--primary)) 0, transparent 40%), radial-gradient(circle at 75% 70%, hsl(var(--accent)) 0, transparent 40%)" }}
+      <div className="grid lg:grid-cols-[1.1fr_1fr] h-full">
+        {/* LEFT: Futuristic Sales */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-background via-card to-background border-r border-border2 flex items-center justify-center p-6 lg:p-10">
+          {/* Animated grid background */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.06]"
+            style={{
+              backgroundImage:
+                "linear-gradient(hsl(var(--primary)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)",
+              backgroundSize: "44px 44px",
+              maskImage: "radial-gradient(ellipse 80% 70% at 50% 50%, black 30%, transparent 80%)",
+            }}
           />
-          <div className="relative max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 border border-primary/40 bg-primary/5 rounded-sm">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="font-mono text-[10px] tracking-[2px] uppercase text-primary">FERRAMENTA #1 PRA INFOPRODUTORES</span>
+          {/* Glow orbs */}
+          <div className="absolute -top-32 -left-32 w-[420px] h-[420px] rounded-full opacity-30 blur-[100px] bg-primary pointer-events-none" />
+          <div className="absolute -bottom-32 -right-32 w-[420px] h-[420px] rounded-full opacity-25 blur-[100px] bg-accent pointer-events-none" />
+          {/* Particles */}
+          <div className="absolute inset-0 pointer-events-none">
+            {[...Array(20)].map((_, i) => (
+              <div key={i}
+                className="absolute w-1 h-1 rounded-full bg-primary"
+                style={{
+                  top: `${(i * 53) % 100}%`,
+                  left: `${(i * 37) % 100}%`,
+                  opacity: 0.15 + ((i % 5) * 0.1),
+                  boxShadow: "0 0 8px hsl(var(--primary))",
+                  animation: `float-${i % 3} ${5 + (i % 4)}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.2}s`,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="relative w-full max-w-xl">
+            {/* Tag */}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-5 border border-primary/40 bg-primary/5 rounded-sm backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <span className="font-mono text-[10px] tracking-[3px] uppercase text-primary">SISTEMA ONLINE · v3.1</span>
             </div>
 
-            <h1 className="font-logo text-4xl lg:text-6xl font-black tracking-tight text-foreground mb-4 leading-[1.05]">
-              MÁQUINA DE<br />
-              <span className="text-primary" style={{ textShadow: "0 0 30px hsl(var(--primary)/0.5)" }}>
-                CARROSSEL
+            {/* Headline */}
+            <h1 className="font-logo font-black tracking-tight text-foreground mb-4 leading-[0.95]"
+              style={{ fontSize: "clamp(2.4rem, 5.5vw, 4.4rem)" }}>
+              MÁQUINA<br />
+              <span className="relative inline-block text-primary"
+                style={{ textShadow: "0 0 40px hsl(var(--primary)/0.6), 0 0 80px hsl(var(--primary)/0.3)" }}>
+                DE CARROSSEL
+                <div className="absolute -bottom-1 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary to-transparent opacity-60" />
               </span>
             </h1>
 
-            <p className="text-base lg:text-lg text-muted-foreground mb-8 leading-relaxed">
-              Gere <strong className="text-foreground">carrosséis cinematográficos</strong> em 4K
-              com IA Gemini Nano Banana Pro. Cole o roteiro, escolha o estilo, exporte.
-              Sem Photoshop. Sem designer.
+            <p className="text-sm lg:text-base text-muted-foreground mb-6 leading-relaxed max-w-lg">
+              Carrosséis cinematográficos em <span className="text-primary font-semibold">4K</span> com
+              IA Gemini Nano Banana Pro. Cole o roteiro, gere em <span className="text-foreground font-semibold">90 segundos</span>.
             </p>
 
-            <div className="space-y-3 mb-8">
+            {/* Floating 3D carousel mockup */}
+            <div className="relative h-[180px] lg:h-[200px] mb-6 perspective-[1000px]">
               {[
-                { icon: Bot, label: "IA Gemini Nano Banana Pro", desc: "Modelo mais avançado pra imagens" },
-                { icon: Layers, label: "4 variações por slide", desc: "Escolha a melhor sem refazer" },
-                { icon: Zap, label: "Roteiro → Carrossel em 90s", desc: "Cole texto, gere tudo" },
-                { icon: ShieldCheck, label: "Sua chave Google API", desc: "Sem custos extras na plataforma" },
-              ].map((b) => (
-                <div key={b.label} className="flex items-start gap-3 p-3 border border-border2 rounded-sm bg-card/50">
-                  <b.icon className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                  <div>
-                    <div className="font-mono text-xs uppercase tracking-wider text-foreground">{b.label}</div>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">{b.desc}</div>
+                { rot: -18, x: 0, z: 0, opacity: 0.55, scale: 0.85 },
+                { rot: -8, x: 70, z: 30, opacity: 0.8, scale: 0.92 },
+                { rot: 0, x: 150, z: 60, opacity: 1, scale: 1 },
+                { rot: 8, x: 230, z: 30, opacity: 0.8, scale: 0.92 },
+                { rot: 18, x: 300, z: 0, opacity: 0.55, scale: 0.85 },
+              ].map((card, i) => (
+                <div key={i}
+                  className="absolute top-1/2 left-1/2 w-[120px] h-[170px] rounded-md border border-primary/30 bg-gradient-to-br from-card to-background shadow-[0_10px_40px_hsl(var(--primary)/0.25)] overflow-hidden"
+                  style={{
+                    transform: `translate(-50%, -50%) translateX(${card.x - 150}px) rotateY(${card.rot}deg) translateZ(${card.z}px) scale(${card.scale})`,
+                    opacity: card.opacity,
+                    transformStyle: "preserve-3d",
+                  }}>
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/20" />
+                  <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
+                    <div className="font-mono text-[7px] text-primary tracking-wider">SLIDE {i + 1}/5</div>
+                    <Sparkles className="w-2.5 h-2.5 text-primary" />
                   </div>
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <div className="h-1.5 rounded-sm bg-primary/40 mb-1.5 w-3/4" />
+                    <div className="h-1 rounded-sm bg-foreground/30 mb-1 w-full" />
+                    <div className="h-1 rounded-sm bg-foreground/30 w-2/3" />
+                  </div>
+                  <div className="absolute inset-0 ring-1 ring-inset ring-primary/10" />
                 </div>
               ))}
             </div>
 
-            <div className="border-t border-border2 pt-6">
-              <div className="font-mono text-[10px] tracking-[2px] uppercase text-muted-foreground mb-3">A partir de</div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-black text-primary">R$174</span>
-                <span className="text-sm text-muted-foreground">/mês · plano anual</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-2">
-                ou R$203/mês no plano mensal · cancele quando quiser
-              </p>
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {[
+                { v: "10K+", l: "Carrosséis" },
+                { v: "90s", l: "Por roteiro" },
+                { v: "4K", l: "Resolução" },
+              ].map((s) => (
+                <div key={s.l} className="border border-border2 bg-card/40 backdrop-blur-sm rounded-sm p-2.5 text-center">
+                  <div className="font-black text-lg lg:text-xl text-primary leading-none"
+                    style={{ textShadow: "0 0 12px hsl(var(--primary)/0.5)" }}>{s.v}</div>
+                  <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-muted-foreground mt-1">{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Mini benefits */}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { icon: Bot, label: "Gemini Pro" },
+                { icon: Layers, label: "4 variações" },
+                { icon: Zap, label: "Sem Photoshop" },
+                { icon: ShieldCheck, label: "Stripe seguro" },
+              ].map((b) => (
+                <div key={b.label} className="flex items-center gap-2 px-2.5 py-1.5 border border-border2 rounded-sm bg-card/30">
+                  <b.icon className="w-3 h-3 text-primary shrink-0" />
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-foreground/80">{b.label}</span>
+                </div>
+              ))}
             </div>
           </div>
+
+          <style>{`
+            @keyframes float-0 { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
+            @keyframes float-1 { 0%,100% { transform: translateY(0) } 50% { transform: translateY(8px) } }
+            @keyframes float-2 { 0%,100% { transform: translateX(0) } 50% { transform: translateX(10px) } }
+            .perspective-\\[1000px\\] { perspective: 1000px; }
+          `}</style>
         </section>
 
         {/* RIGHT: Auth form */}
-        <section className="flex items-center justify-center p-6 lg:p-12">
-          <div className="w-full max-w-md">
-            <div className="bg-popover border border-border2 rounded-md p-6 lg:p-8 shadow-[0_8px_40px_hsl(var(--primary)/0.08)]">
+        <section className="flex items-center justify-center p-6 lg:p-10 overflow-y-auto">
+          <div className="w-full max-w-sm">
+            {/* Logo */}
+            <div className="mb-6 text-center">
+              <div className="inline-flex items-center gap-2 mb-2">
+                <span className="font-logo text-xl font-black tracking-[3px] text-foreground">BRITTO</span>
+                <span className="text-primary text-lg" style={{ textShadow: "0 0 10px hsl(var(--primary))" }}>★</span>
+                <span className="font-logo text-xl font-black tracking-[3px] text-foreground">STUDIO</span>
+              </div>
+              <div className="font-mono text-[9px] tracking-[3px] uppercase text-muted-foreground">CARROSSEL ENGINE</div>
+            </div>
+
+            <div className="bg-popover/80 backdrop-blur-sm border border-border2 rounded-md p-6 shadow-[0_8px_60px_hsl(var(--primary)/0.12)] relative">
+              {/* Glow border accent */}
+              <div className="absolute -top-px left-1/2 -translate-x-1/2 w-1/3 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
+
               <h2 className="font-mono text-sm tracking-[2px] uppercase text-foreground mb-1">
-                {mode === "login" ? "Entrar" : mode === "signup" ? "Comece grátis" : "Recuperar senha"}
+                {mode === "login" ? "Acessar painel" : mode === "signup" ? "Criar acesso" : "Recuperar senha"}
               </h2>
-              <p className="text-xs text-muted-foreground mb-6">
-                {mode === "login" ? "Acesse seu painel"
-                  : mode === "signup" ? "Cadastro em 30 segundos · pague só ao gerar"
+              <p className="text-xs text-muted-foreground mb-5">
+                {mode === "login" ? "Entre com sua conta"
+                  : mode === "signup" ? "Cadastro em 30s · escolha o plano depois"
                   : "Enviaremos um link pro seu e-mail"}
               </p>
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                 {mode === "signup" && (
                   <input type="text" placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)}
-                    className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+                    className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition" />
                 )}
                 <input type="email" placeholder="E-mail" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+                  className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition" />
                 {mode !== "forgot" && (
                   <input type="password" placeholder="Senha" required minLength={6} value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary" />
+                    className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition" />
                 )}
                 <button type="submit" disabled={busy}
-                  className="bg-primary text-primary-foreground font-mono text-xs tracking-[2px] uppercase py-3 rounded-sm hover:opacity-90 transition disabled:opacity-50">
-                  {busy ? "..." : mode === "login" ? "Entrar" : mode === "signup" ? "Criar conta" : "Enviar link"}
+                  className="bg-primary text-primary-foreground font-mono text-xs tracking-[3px] uppercase py-3 rounded-sm hover:opacity-90 transition disabled:opacity-50 mt-1 relative overflow-hidden group">
+                  <span className="relative z-10">{busy ? "..." : mode === "login" ? "Entrar" : mode === "signup" ? "Criar conta" : "Enviar link"}</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 </button>
               </form>
 
-              <div className="mt-6 flex flex-col gap-2 text-xs text-center">
+              <div className="mt-5 flex flex-col gap-2 text-xs text-center">
                 {mode === "login" ? (
                   <>
-                    <button onClick={() => setMode("forgot")} className="text-muted-foreground hover:text-primary">
+                    <button type="button" onClick={() => setMode("forgot")} className="text-muted-foreground hover:text-primary transition">
                       Esqueci minha senha
                     </button>
-                    <button onClick={() => setMode("signup")} className="text-primary hover:underline">
+                    <button type="button" onClick={() => setMode("signup")} className="text-primary hover:underline">
                       Não tem conta? Criar agora
                     </button>
                   </>
                 ) : mode === "signup" ? (
-                  <button onClick={() => setMode("login")} className="text-primary hover:underline">
+                  <button type="button" onClick={() => setMode("login")} className="text-primary hover:underline">
                     Já tenho conta · Entrar
                   </button>
                 ) : (
-                  <button onClick={() => setMode("login")} className="text-primary hover:underline">
+                  <button type="button" onClick={() => setMode("login")} className="text-primary hover:underline">
                     ← Voltar para login
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="mt-6 text-center space-y-1.5">
-              <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
-                <Check className="w-3 h-3 text-primary" /> Pagamento seguro Stripe
+            {/* Trust badges */}
+            <div className="mt-5 flex items-center justify-center gap-4 flex-wrap">
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
+                <Check className="w-3 h-3 text-primary" /> Stripe
               </div>
-              <div className="flex items-center justify-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
-                <Check className="w-3 h-3 text-primary" /> Acesso imediato após compra
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
+                <Check className="w-3 h-3 text-primary" /> Acesso imediato
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
+                <TrendingUp className="w-3 h-3 text-primary" /> R$174/mês
               </div>
             </div>
           </div>
