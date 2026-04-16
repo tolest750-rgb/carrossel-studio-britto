@@ -108,6 +108,37 @@ export default function Account() {
     }
   };
 
+  const changePlan = async (target: "mensal" | "anual") => {
+    const isUpgrade = subInfo?.plan_type === "mensal" && target === "anual";
+    const isDowngrade = subInfo?.plan_type === "anual" && target === "mensal";
+    const msg = isUpgrade
+      ? "UPGRADE PRO ANUAL\n\nMudança IMEDIATA. Stripe cobra o valor proporcional agora (crédito do mensal já pago é descontado).\n\nNovo compromisso de 12 meses começa hoje. Cancelar antes = multa de R$ 522.\n\nConfirmar upgrade?"
+      : isDowngrade
+        ? "DOWNGRADE PRO MENSAL\n\nMudança no fim do período pago atual. Você continua no anual até o vencimento, e na próxima cobrança passa pra R$ 203/mês.\n\nConfirmar downgrade?"
+        : "Trocar plano?";
+    if (!confirm(msg)) return;
+
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("change-plan", {
+        body: { environment, planType: target },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: isUpgrade ? "Upgrade efetuado" : "Downgrade agendado",
+        description: isUpgrade
+          ? "Você está no plano ANUAL. Cobrança proporcional realizada."
+          : `Vai virar MENSAL em ${data.effectiveAt ? new Date(data.effectiveAt).toLocaleDateString("pt-BR") : "fim do período"}.`,
+      });
+      await reload();
+    } catch (e: any) {
+      toast({ title: "Erro ao trocar plano", description: e.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const cancelSub = async () => {
     const planType = subInfo?.plan_type ?? "mensal";
     const fee = planType === "mensal" ? "R$ 203,00 (1 mês)"
