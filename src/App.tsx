@@ -8,7 +8,9 @@ import NotFound from "./pages/NotFound.tsx";
 import Auth from "./pages/Auth.tsx";
 import ResetPassword from "./pages/ResetPassword.tsx";
 import Pricing from "./pages/Pricing.tsx";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import Account from "./pages/Account.tsx";
+import Admin from "./pages/Admin.tsx";
+import { ProtectedRoute, AdminRoute, RequireSubscription } from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +24,14 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <Account />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/pricing"
             element={
               <ProtectedRoute>
@@ -30,10 +40,20 @@ const App = () => (
             }
           />
           <Route
+            path="/admin"
+            element={
+              <AdminRoute>
+                <Admin />
+              </AdminRoute>
+            }
+          />
+          <Route
             path="/"
             element={
               <ProtectedRoute>
-                <Index />
+                <RequireSubscription>
+                  <Index />
+                </RequireSubscription>
               </ProtectedRoute>
             }
           />

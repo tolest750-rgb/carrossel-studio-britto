@@ -2,11 +2,22 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useTheme } from "@/lib/theme";
+import { Sun, Moon, User, Shield } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { active } = useSubscription();
+  const { theme, toggle } = useTheme();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -33,14 +44,23 @@ export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
           BRITTO<span className="text-accent">★</span>
         </Link>
         <div className="hidden md:block font-mono text-[9px] text-muted-foreground tracking-[2px] border border-border2 px-2.5 py-0.5 rounded-sm bg-card">
-          CAROUSEL_STUDIO
+          MÁQUINA_DE_CARROSSEL
         </div>
       </div>
 
       <div className="flex items-center gap-2 md:gap-3">
+        <button
+          onClick={toggle}
+          className="p-1.5 border border-border2 rounded-sm text-muted-foreground hover:text-primary hover:border-primary transition"
+          aria-label="Trocar tema"
+          title={theme === "dark" ? "Modo claro" : "Modo escuro"}
+        >
+          {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+        </button>
+
         {active === false && user && (
           <Link
-            to="/pricing"
+            to="/account"
             className="bg-primary/10 border border-primary text-primary font-mono text-[10px] tracking-[1px] uppercase px-3 py-1.5 rounded-sm hover:bg-primary/20 transition"
           >
             ★ Assinar
@@ -52,18 +72,29 @@ export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
             PRO
           </span>
         )}
+        {isAdmin && (
+          <Link
+            to="/admin"
+            className="font-mono text-[9px] tracking-[1px] uppercase px-2 py-1 rounded-sm border border-accent text-accent hover:bg-accent/10 flex items-center gap-1"
+          >
+            <Shield className="w-3 h-3" /> Admin
+          </Link>
+        )}
         {user && (
-          <div className="flex items-center gap-2">
-            <span className="hidden md:inline font-mono text-[10px] text-muted-foreground truncate max-w-[150px]">
-              {user.email}
-            </span>
-            <button
-              onClick={logout}
-              className="font-mono text-[9px] tracking-[1px] uppercase text-muted-foreground hover:text-destructive border border-border2 hover:border-destructive px-2 py-1 rounded-sm transition"
-            >
-              Sair
-            </button>
-          </div>
+          <Link
+            to="/account"
+            className="font-mono text-[9px] tracking-[1px] uppercase px-2 py-1 rounded-sm border border-border2 hover:border-primary hover:text-primary transition flex items-center gap-1 text-muted-foreground"
+          >
+            <User className="w-3 h-3" /> Conta
+          </Link>
+        )}
+        {user && (
+          <button
+            onClick={logout}
+            className="font-mono text-[9px] tracking-[1px] uppercase text-muted-foreground hover:text-destructive border border-border2 hover:border-destructive px-2 py-1 rounded-sm transition"
+          >
+            Sair
+          </button>
         )}
       </div>
     </nav>
