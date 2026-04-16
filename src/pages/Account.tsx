@@ -341,6 +341,18 @@ export default function Account() {
                         )}
                       </div>
                       <div className="grid sm:grid-cols-2 gap-3">
+                        {subInfo?.plan_type === "mensal" && (
+                          <button onClick={() => changePlan("anual")} disabled={busy}
+                            className="border border-primary bg-primary/5 text-primary font-mono text-xs tracking-[2px] uppercase py-3 rounded-sm hover:bg-primary/10 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                            <RefreshCw className="w-3.5 h-3.5" /> Upgrade pro Anual (R$ 174/mês)
+                          </button>
+                        )}
+                        {subInfo?.plan_type === "anual" && (
+                          <button onClick={() => changePlan("mensal")} disabled={busy}
+                            className="border border-border2 text-foreground font-mono text-xs tracking-[2px] uppercase py-3 rounded-sm hover:bg-card transition disabled:opacity-50 flex items-center justify-center gap-2">
+                            <RefreshCw className="w-3.5 h-3.5" /> Downgrade pro Mensal
+                          </button>
+                        )}
                         <button onClick={openPortal} disabled={busy}
                           className="border border-primary text-primary font-mono text-xs tracking-[2px] uppercase py-3 rounded-sm hover:bg-primary/10 transition disabled:opacity-50 flex items-center justify-center gap-2">
                           <ExternalLink className="w-3.5 h-3.5" /> Atualizar cartão / Faturas
