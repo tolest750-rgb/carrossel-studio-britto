@@ -2,24 +2,22 @@ import type { SlideData, StyleKey, LightKey, FormatKey } from "./parser";
 
 // ─── STYLE PRESETS ────────────────────────────────────────────
 const STYLES: Record<StyleKey, string> = {
+  ultra3d:
+    "ultra-photorealistic 3D render quality, hyper-detailed textures, octane-render aesthetic, volumetric lighting, subsurface scattering on skin, ray-traced reflections, micro-detail in every surface — pure photographic realism",
   cinematic:
     "ultra-realistic cinematic portrait photography, 50mm-85mm prime lens f/1.4, extreme skin detail and pore texture, natural film grain, Hollywood color grading, photorealistic — all shadow zones carry the scene's ambient color temperature at low intensity, never pure black voids",
-  corporate:
-    "professional editorial portrait photography, studio strobe key light with soft box, luxury business magazine aesthetic, photorealistic — directional shadows have warm or cool color contamination matching the scene, deep textured dark zones with rich tonal depth",
   futuristic:
     "hyper-realistic sci-fi portrait, futuristic neon practical lights, cyberpunk art direction, photorealistic — neon light bleeds and spills into all dark background zones, colored atmospheric glow contaminates shadows, every dark area has visible ambient hue from the scene's neon sources",
-  editorial:
-    "high-end editorial portrait photography, Vogue-quality dramatic lighting, sophisticated composition, photorealistic — dark zones have multi-layer tonal depth with ambient light interaction from scene sources",
+  cleancorp:
+    "clean minimalist black-and-white corporate photography, flat composition, high-contrast monochrome, ample negative space, editorial magazine quality, no color saturation, ultra-sharp subject, professional studio lighting",
 };
 
 const LIGHTS: Record<LightKey, string> = {
-  dramatic:
-    "electric blue key light from camera left at 45°, blue light spill bleeds across dark background surfaces at 10-20% intensity — rich deep-blue atmospheric glow in all shadow zones, neon blue rim light creating a halo on subject edges, cool desaturated mid-tones, NEVER pure black in shadows",
-  warm: "warm amber-golden key light, amber light contamination visible in all dark zones — warm golden haze in background depth, shadows carry rich ochre-sienna undertones, luxury gold color grade — NEVER pure black, always rich dark warm tones with visible color temperature",
-  green:
-    "neon lime-green rim light — visible green light spill radiates and bleeds onto dark background surfaces, cyberpunk green ambient glow permeates all shadow zones at low intensity, high contrast with deep dark background that still has visible green luminescence — NEVER pure black zones",
-  moody:
-    "single Rembrandt key light from above-right, deep chiaroscuro — shadows are rich dark-grey with faint warm candle-light contamination, dramatic contrast, visible tonal texture in all dark areas — noir palette with depth and color in the darkness, NEVER flat pure black",
+  warm: "warm amber-golden key light, amber light contamination visible in all dark zones — warm golden haze in background depth, shadows carry rich ochre-sienna undertones, luxury gold color grade — NEVER pure black",
+  cold: "cool electric blue key light, blue light spill across dark background surfaces, cool desaturated mid-tones, neon blue rim light on subject edges, NEVER pure black in shadows",
+  clean: "soft uniform clean white key light, balanced exposure, neutral color temperature, minimal shadows, bright airy atmosphere, studio softbox quality",
+  neon: "vibrant neon practical lights with strong colored spill onto background and subject edges, atmospheric color glow, cyberpunk ambience — colored shadows NEVER pure black",
+  custom: "custom dual-color lighting palette with two complementary hues bleeding through the scene, atmospheric color contamination in all shadow zones, NEVER pure black",
 };
 
 const TITLE_IN_IMAGE_KEYWORDS = [

@@ -594,10 +594,11 @@ const DIM: Record<string, [number, number]> = {
 };
 
 const ACC: Record<LightKey, string> = {
-  dramatic: "#00b4ff",
   warm: "#f5c842",
-  green: "#c8ff00",
-  moody: "#e0e0ff",
+  cold: "#00b4ff",
+  clean: "#ffffff",
+  neon: "#c8ff00",
+  custom: "#c8ff00",
 };
 
 // ─────────────────────────────────────────────────────────────
