@@ -299,6 +299,9 @@ export function CarouselProvider({ children }: { children: React.ReactNode }) {
       final_prompt: finalPrompt,
       model_used: selectedModel,
     });
+    if (url && slideIdx === 0 && varIdx === 0) {
+      await supabase.from("projects").update({ thumbnail_url: url, updated_at: new Date().toISOString() }).eq("id", projectId);
+    }
   }, [selectedModel]);
 
   const startGeneration = useCallback(async () => {
