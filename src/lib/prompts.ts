@@ -1,4 +1,15 @@
-import type { SlideData, StyleKey, LightKey, FormatKey } from "./parser";
+import type { SlideData, StyleKey, LightKey, FormatKey, TypographyConfig, LightConfig, FontKey } from "./parser";
+
+const FONT_DESCRIPTIONS: Record<FontKey, string> = {
+  rajdhani: "Rajdhani — geometric semi-condensed sans-serif, modern futuristic feel",
+  orbitron: "Orbitron — wide geometric sans-serif, sci-fi tech aesthetic",
+  playfair: "Playfair Display — elegant high-contrast serif, editorial luxury",
+  inter: "Inter — clean neutral grotesque sans-serif, professional minimalism",
+  bebas: "Bebas Neue — tall narrow condensed sans-serif, bold poster impact",
+  montserrat: "Montserrat — geometric humanist sans-serif, friendly modern",
+  oswald: "Oswald — narrow condensed sans-serif, headline strength",
+  "space-grotesk": "Space Grotesk — geometric grotesque sans-serif, contemporary tech",
+};
 
 // ─── STYLE PRESETS ────────────────────────────────────────────
 const STYLES: Record<StyleKey, string> = {
