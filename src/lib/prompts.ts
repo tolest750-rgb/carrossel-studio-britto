@@ -1,4 +1,15 @@
-import type { SlideData, StyleKey, LightKey, FormatKey } from "./parser";
+import type { SlideData, StyleKey, LightKey, FormatKey, TypographyConfig, LightConfig, FontKey } from "./parser";
+
+const FONT_DESCRIPTIONS: Record<FontKey, string> = {
+  rajdhani: "Rajdhani — geometric semi-condensed sans-serif, modern futuristic feel",
+  orbitron: "Orbitron — wide geometric sans-serif, sci-fi tech aesthetic",
+  playfair: "Playfair Display — elegant high-contrast serif, editorial luxury",
+  inter: "Inter — clean neutral grotesque sans-serif, professional minimalism",
+  bebas: "Bebas Neue — tall narrow condensed sans-serif, bold poster impact",
+  montserrat: "Montserrat — geometric humanist sans-serif, friendly modern",
+  oswald: "Oswald — narrow condensed sans-serif, headline strength",
+  "space-grotesk": "Space Grotesk — geometric grotesque sans-serif, contemporary tech",
+};
 
 // ─── STYLE PRESETS ────────────────────────────────────────────
 const STYLES: Record<StyleKey, string> = {
@@ -143,9 +154,11 @@ export function buildPrompt(
   style: StyleKey,
   light: LightKey,
   fmt: FormatKey,
-  options?: { useFaceRef?: boolean },
+  options?: { useFaceRef?: boolean; typography?: TypographyConfig; lightConfig?: LightConfig },
 ) {
   const useFaceRef = options?.useFaceRef ?? false;
+  const typography = options?.typography;
+  const lightConfig = options?.lightConfig;
   const titleInImage = visualHasTitleInImage(sl.visual ?? "");
 
   const fmtHint: Record<FormatKey, string> = {
@@ -166,13 +179,25 @@ export function buildPrompt(
 
   const hasPerson = visualHasPerson(sl.visual ?? "");
 
+  let lightingInstruction = LIGHTS[light];
+  if (light === "neon" && lightConfig?.neonColor) {
+    lightingInstruction = `vibrant neon practical lights using primary color ${lightConfig.neonColor}, strong colored spill onto background and subject edges, atmospheric ${lightConfig.neonColor} glow contaminating shadows, cyberpunk ambience — colored shadows NEVER pure black`;
+  } else if (light === "custom" && lightConfig?.customColors) {
+    const [c1, c2] = lightConfig.customColors;
+    lightingInstruction = `dual-color cinematic lighting using ${c1} as key light and ${c2} as fill/rim light, both colors bleed atmospherically into all shadow zones, complementary color contamination at 10-20% intensity, NEVER pure black shadows`;
+  }
+
+  const typoInstruction = typography
+    ? `TYPOGRAPHY DIRECTION (for any text rendered in the image, and as a stylistic mood reference): title in ${FONT_DESCRIPTIONS[typography.title]}, subtitle in ${FONT_DESCRIPTIONS[typography.subtitle]}, CTA in ${FONT_DESCRIPTIONS[typography.cta]}.`
+    : "";
+
   const parts = [
     faceInstruction,
     "SCENE DESCRIPTION:",
     fmtHint[fmt],
     STYLES[style],
     sl.visual,
-    LIGHTS[light],
+    lightingInstruction,
     sl.design || "",
     hasPerson ? SKIN_REALISM : "",
     "",
@@ -182,6 +207,7 @@ export function buildPrompt(
     titleInImage
       ? "TYPOGRAPHY IS PART OF THE SCENE: render the title text directly embedded in the image with the requested style. The text must be fully legible, stylized, and integrated into the composition."
       : "Leave at least 30-40% of the image as clean dark/atmospheric area for text overlay (do NOT add text — just leave clean space).",
+    typoInstruction,
     "Create natural depth separation: sharp foreground subject, soft bokeh mid-ground, atmospheric background.",
     "CRITICAL: Ensure at least one large area of the image has low visual complexity (soft gradients, bokeh, shadow) for typography placement.",
     "",
@@ -197,7 +223,9 @@ export function buildPrompt(
 }
 
 // ─── BUILD LAYOUT (accent only) ──────────────────────────────
-export function buildLayout(light: LightKey): { accent: string } {
+export function buildLayout(light: LightKey, lightConfig?: LightConfig): { accent: string } {
+  if (light === "neon" && lightConfig?.neonColor) return { accent: lightConfig.neonColor };
+  if (light === "custom" && lightConfig?.customColors) return { accent: lightConfig.customColors[0] };
   const ACC: Record<LightKey, string> = {
     warm: "#f5c842",
     cold: "#00b4ff",

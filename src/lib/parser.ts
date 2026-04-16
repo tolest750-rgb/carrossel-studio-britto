@@ -27,6 +27,8 @@ export interface ProcessedSlide extends SlideData {
   style: string;
   light: string;
   res: string;
+  typography?: TypographyConfig;
+  lightConfig?: LightConfig;
 }
 
 // New style options
