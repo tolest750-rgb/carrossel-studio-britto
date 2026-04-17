@@ -243,26 +243,26 @@ export default function Auth() {
         </section>
 
         {/* RIGHT: Auth form */}
-        <section className="flex items-center justify-center p-4 sm:p-6 lg:p-10 lg:overflow-y-auto animate-fade-in-up">
+        <section className="flex items-center justify-center p-4 sm:p-5 lg:px-8 lg:py-6 lg:overflow-y-auto animate-fade-in-up">
           <div className="w-full max-w-sm">
             {/* Logo */}
-            <div className="mb-6 text-center">
-              <div className="inline-flex items-center gap-2 mb-2">
-                <span className="font-logo text-xl font-black tracking-[3px] text-foreground">BRITTO</span>
-                <span className="text-primary text-lg" style={{ textShadow: "0 0 10px hsl(var(--primary))" }}>★</span>
-                <span className="font-logo text-xl font-black tracking-[3px] text-foreground">STUDIO</span>
+            <div className="mb-4 text-center">
+              <div className="inline-flex items-center gap-2 mb-1.5">
+                <span className="font-logo text-lg font-black tracking-[3px] text-foreground">BRITTO</span>
+                <span className="text-primary text-base" style={{ textShadow: "0 0 10px hsl(var(--primary))" }}>★</span>
+                <span className="font-logo text-lg font-black tracking-[3px] text-foreground">STUDIO</span>
               </div>
               <div className="font-mono text-[9px] tracking-[3px] uppercase text-muted-foreground">CARROSSEL ENGINE</div>
             </div>
 
-            <div className="bg-popover/80 backdrop-blur-sm border border-border2 rounded-md p-6 shadow-[0_8px_60px_hsl(var(--primary)/0.12)] relative">
+            <div className="bg-popover/80 backdrop-blur-sm border border-border2 rounded-md p-4 sm:p-5 shadow-[0_8px_60px_hsl(var(--primary)/0.12)] relative">
               {/* Glow border accent */}
               <div className="absolute -top-px left-1/2 -translate-x-1/2 w-1/3 h-px bg-gradient-to-r from-transparent via-primary to-transparent" />
 
               <h2 className="font-mono text-sm tracking-[2px] uppercase text-foreground mb-1">
                 {mode === "login" ? "Acessar painel" : mode === "signup" ? "Criar acesso" : "Recuperar senha"}
               </h2>
-              <p className="text-xs text-muted-foreground mb-5">
+              <p className="text-xs text-muted-foreground mb-3.5">
                 {mode === "login" ? "Entre com sua conta"
                   : mode === "signup" ? "Cadastro em 30s · escolha o plano depois"
                   : "Enviaremos um link pro seu e-mail"}
@@ -274,7 +274,7 @@ export default function Auth() {
                     type="button"
                     onClick={handleGoogle}
                     disabled={busy}
-                    className="w-full flex items-center justify-center gap-2.5 bg-card border border-border2 hover:border-primary text-foreground font-mono text-xs tracking-[2px] uppercase py-2.5 rounded-sm transition disabled:opacity-50 mb-3"
+                    className="w-full flex items-center justify-center gap-2.5 bg-card border border-border2 hover:border-primary text-foreground font-mono text-xs tracking-[2px] uppercase py-2 rounded-sm transition disabled:opacity-50 mb-2.5"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -284,7 +284,7 @@ export default function Auth() {
                     </svg>
                     Continuar com Google
                   </button>
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-2.5">
                     <div className="h-px flex-1 bg-border2" />
                     <span className="font-mono text-[9px] tracking-[2px] uppercase text-muted-foreground">ou e-mail</span>
                     <div className="h-px flex-1 bg-border2" />
@@ -292,26 +292,26 @@ export default function Auth() {
                 </>
               )}
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
                 {mode === "signup" && (
                   <input type="text" placeholder="Seu nome" value={name} onChange={(e) => setName(e.target.value)}
-                    className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition" />
+                    className="bg-card border border-border2 rounded-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary transition" />
                 )}
                 <input type="email" placeholder="E-mail" required value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition" />
+                  className="bg-card border border-border2 rounded-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary transition" />
                 {mode !== "forgot" && (
                   <input type="password" placeholder="Senha" required minLength={6} value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-card border border-border2 rounded-sm px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary transition" />
+                    className="bg-card border border-border2 rounded-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary transition" />
                 )}
                 <button type="submit" disabled={busy}
-                  className="bg-primary text-primary-foreground font-mono text-xs tracking-[3px] uppercase py-3 rounded-sm hover:opacity-90 transition disabled:opacity-50 mt-1 relative overflow-hidden group">
+                  className="bg-primary text-primary-foreground font-mono text-xs tracking-[3px] uppercase py-2.5 rounded-sm hover:opacity-90 transition disabled:opacity-50 mt-1 relative overflow-hidden group">
                   <span className="relative z-10">{busy ? "..." : mode === "login" ? "Entrar" : mode === "signup" ? "Criar conta" : "Enviar link"}</span>
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 </button>
               </form>
 
-              <div className="mt-5 flex flex-col gap-2 text-xs text-center">
+              <div className="mt-3.5 flex flex-col gap-1.5 text-xs text-center">
                 {mode === "login" ? (
                   <>
                     <button type="button" onClick={() => setMode("forgot")} className="text-muted-foreground hover:text-primary transition">
@@ -334,7 +334,7 @@ export default function Auth() {
             </div>
 
             {/* Trust badges */}
-            <div className="mt-5 flex items-center justify-center gap-4 flex-wrap">
+            <div className="mt-3 flex items-center justify-center gap-3 sm:gap-4 flex-wrap">
               <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
                 <Check className="w-3 h-3 text-primary" /> Pagamento seguro
               </div>
