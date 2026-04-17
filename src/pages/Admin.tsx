@@ -19,15 +19,18 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
   const [fees, setFees] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
 
   const load = async () => {
     setLoading(true);
-    const [{ data: profiles }, { data: subs }, { data: cancelFees }] = await Promise.all([
+    const [{ data: profiles }, { data: subs }, { data: cancelFees }, { data: log }] = await Promise.all([
       supabase.from("profiles").select("user_id, display_name, created_at").order("created_at", { ascending: false }),
       supabase.from("subscriptions").select("user_id, status, plan_type, current_period_end, cancel_at_period_end"),
       supabase.from("cancellation_fees").select("*").order("created_at", { ascending: false }).limit(50),
+      supabase.from("plan_change_log").select("*").order("created_at", { ascending: false }).limit(100),
     ]);
     const subMap = new Map((subs || []).map((s: any) => [s.user_id, s]));
+    const profMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
     setRows(
       (profiles || []).map((p: any) => ({
         ...p,
@@ -35,6 +38,7 @@ export default function Admin() {
       }))
     );
     setFees(cancelFees || []);
+    setHistory((log || []).map((h: any) => ({ ...h, display_name: profMap.get(h.user_id)?.display_name })));
     setLoading(false);
   };
 
@@ -52,6 +56,18 @@ export default function Admin() {
     canceledScheduled: rows.filter((r) => r.cancel_at_period_end).length,
     feesPaid: fees.filter((f) => f.status === "paid").reduce((sum, f) => sum + f.amount_cents, 0),
   };
+
+  const actionLabel = (a: string) => ({
+    signup: "Cadastro pago", renewal: "Renovação", upgrade: "Upgrade",
+    downgrade: "Downgrade", cancel: "Cancelamento",
+  } as Record<string, string>)[a] || a;
+  const actionColor = (a: string) => ({
+    signup: "bg-primary/10 text-primary border-primary/30",
+    renewal: "bg-primary/10 text-primary border-primary/30",
+    upgrade: "bg-accent/10 text-accent border-accent/30",
+    downgrade: "bg-warning/10 text-warning border-warning/30",
+    cancel: "bg-destructive/10 text-destructive border-destructive/30",
+  } as Record<string, string>)[a] || "bg-card2 text-muted-foreground border-border2";
 
   return (
     <>
@@ -184,6 +200,53 @@ export default function Admin() {
               </div>
             </div>
           )}
+
+          {/* Plan change history */}
+          <div className="mt-8">
+            <h2 className="font-mono text-xs tracking-[2px] uppercase text-foreground mb-3">
+              Histórico de Planos {history.length > 0 ? `(${history.length})` : ""}
+            </h2>
+            <div className="border border-border2 rounded-sm overflow-x-auto bg-card">
+              <table className="w-full text-xs">
+                <thead className="bg-card2 border-b border-border2">
+                  <tr className="font-mono uppercase tracking-wider text-[10px] text-muted-foreground">
+                    <th className="text-left px-3 py-2">Data</th>
+                    <th className="text-left px-3 py-2">Usuário</th>
+                    <th className="text-left px-3 py-2">Ação</th>
+                    <th className="text-left px-3 py-2">De → Para</th>
+                    <th className="text-left px-3 py-2">Valor</th>
+                    <th className="text-left px-3 py-2">Fatura</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center text-muted-foreground py-8">Nenhuma alteração registrada</td></tr>
+                  ) : history.map((h) => (
+                    <tr key={h.id} className="border-b border-border2/50">
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{new Date(h.created_at).toLocaleString("pt-BR")}</td>
+                      <td className="px-3 py-2 font-mono">{h.display_name || `${h.user_id.slice(0, 8)}...`}</td>
+                      <td className="px-3 py-2">
+                        <span className={`font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-sm border ${actionColor(h.action)}`}>
+                          {actionLabel(h.action)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 font-mono uppercase text-[10px] text-foreground">
+                        {h.from_plan || "—"} → {h.to_plan || "—"}
+                      </td>
+                      <td className="px-3 py-2 text-foreground">
+                        {h.amount_cents ? `R$ ${(h.amount_cents / 100).toFixed(2)}` : "—"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {h.stripe_invoice_url
+                          ? <a href={h.stripe_invoice_url} target="_blank" rel="noreferrer" className="text-primary hover:underline font-mono text-[10px]">Ver</a>
+                          : <span className="text-muted-foreground">—</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </main>
     </>
