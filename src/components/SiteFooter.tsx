@@ -37,7 +37,7 @@ export function SiteFooter() {
 
           <div className="flex items-center gap-3 sm:gap-4">
             <a
-              href="https://instagram.com/brittogroup"
+              href="https://www.instagram.com/gabrielbrittoofc/"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram do Britto Group"
