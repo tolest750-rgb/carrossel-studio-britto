@@ -1,50 +1,50 @@
 
+User verified domain at Resend and has API key ready. Plan: connect Resend, then implement 4 emails + admin history.
 
-## Como está a integração do Nano Banana hoje
+## Plan
 
-Vou explicar o estado atual da integração, baseado no código.
+### 1. Connect Resend
+Use connector to link Resend → exposes `RESEND_API_KEY` env var.
 
-### 1. Frontend (`src/lib/gemini.ts`)
-- Lê `google_api_key` do `localStorage` do navegador.
-- Envia esse valor (se existir) no body da request para a Edge Function `generate-image`, junto com o prompt e a face em base64.
-- Se não houver key salva, simplesmente não envia o campo — a Edge Function decide o caminho.
+### 2. Database: plan change history
+New table `plan_change_log` (user_id, from_plan, to_plan, action: signup/upgrade/downgrade/cancel, amount_cents, stripe_invoice_id, environment, created_at) with RLS: users see own, admin sees all.
 
-### 2. Sidebar (`src/components/Sidebar.tsx`)
-- Mostra um campo de input (tipo password) onde o usuário cola manualmente a Google API Key.
-- Tem botão de mostrar/ocultar, botão "Remover" e link para o Google AI Studio.
-- Indicador de status alterna entre "LOVABLE AI · CONECTADO" e "GOOGLE AI · NANO BANANA PRO · GRÁTIS" conforme a presença da key.
+### 3. Edge Functions (4 emails via Resend gateway)
+Create `send-email` shared helper + 4 functions (or 1 generic dispatcher with `type` param):
+- `send-welcome-email` — triggered on signup
+- `send-purchase-receipt` — triggered from `payments-webhook` on `invoice.paid` (subscription)
+- `send-plan-change-email` — triggered from `change-plan` after success
+- All use Resend gateway: `https://connector-gateway.lovable.dev/resend/emails`
+- From: `BRITTO Studio <noreply@brittogroup.com.br>`
+- HTML templates with neon/cyberpunk styling matching app
 
-### 3. Edge Function (`supabase/functions/generate-image/index.ts`)
-Possui dois caminhos:
+### 4. Wire triggers
+- **Welcome**: in `Auth.tsx` after successful signup → invoke `send-welcome-email`
+- **Receipt**: in `payments-webhook` on `invoice.paid` → fetch invoice PDF URL from Stripe → invoke `send-purchase-receipt` + insert `plan_change_log` (signup/renewal)
+- **Plan change**: in `change-plan` after Stripe update succeeds → invoke `send-plan-change-email` + insert `plan_change_log`
+- **Cancel**: in `cancel-subscription` after success → log to `plan_change_log`
 
-**Caminho A — Google Direto (quando `googleApiKey` vem do frontend):**
-- Função `generateWithGoogleDirect`.
-- Chama `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent`.
-- Modelo usado: **`gemini-2.0-flash-exp`** ⚠️ (esse modelo foi descontinuado pelo Google — é a causa do erro recente de geração).
-- Sem créditos Lovable consumidos.
+### 5. Admin UI: plan history
+Add tab/section to `/admin` "Histórico de Planos" showing `plan_change_log` joined with profiles (email, action badge, dates, amounts, stripe invoice link).
 
-**Caminho B — Lovable AI Gateway (fallback, sem key):**
-- Pool de modelos: `google/gemini-3.1-flash-image-preview` (Nano Banana 2/Pro), `google/gemini-3-pro-image-preview`, `google/gemini-2.5-flash-image`.
-- Consome créditos Lovable.
+## Technical notes
+- Resend gateway pattern: `Authorization: Bearer ${LOVABLE_API_KEY}` + `X-Connection-Api-Key: ${RESEND_API_KEY}`
+- All edge functions: CORS, return 200+JSON errors, idempotent
+- Email failures must NOT block payment/auth flows — wrap in try/catch
+- Set `verify_jwt = false` for the email functions in `config.toml`
+- Stripe receipt: use `invoice.hosted_invoice_url` and `invoice.invoice_pdf` directly in email
 
-### 4. Geração paralela
-- O `carousel-store.tsx` dispara 4 variações simultâneas por slide via `Promise.allSettled`.
+## Files to create/edit
+- **New**: `supabase/functions/send-welcome-email/index.ts`
+- **New**: `supabase/functions/send-purchase-receipt/index.ts`
+- **New**: `supabase/functions/send-plan-change-email/index.ts`
+- **New**: `supabase/functions/_shared/resend.ts` (gateway helper)
+- **Migration**: create `plan_change_log` + RLS
+- **Edit**: `supabase/functions/payments-webhook/index.ts` (call receipt + log)
+- **Edit**: `supabase/functions/change-plan/index.ts` (call plan change email + log)
+- **Edit**: `supabase/functions/cancel-subscription/index.ts` (log entry)
+- **Edit**: `src/pages/Auth.tsx` (call welcome on signup)
+- **Edit**: `src/pages/Admin.tsx` (history section)
+- **Edit**: `supabase/config.toml` (3 new functions verify_jwt=false)
 
-### Problemas atuais
-1. **Modelo quebrado no caminho direto**: `gemini-2.0-flash-exp` não existe mais para geração de imagens — gera erro toda vez que a key do usuário está presente.
-2. **Key na interface**: Você pediu na mensagem anterior para mover a key (`AIzaSyA4kChl_LaKz_l2CM4LyT4fJaM8FiZS8os`) para o backend como secret, removendo a UI — isso ainda **não foi implementado** (o plano foi apresentado mas não aprovado).
-3. **Memória do projeto** indica que a estratégia desejada é: key no backend como secret + UI removida + Lovable AI apenas como fallback. A implementação atual não corresponde a isso.
-
-### Resumo visual
-
-```text
-[Frontend]                [Edge Function]                [Provedor]
-gemini.ts ──key?──▶ generate-image ──┬─ tem key ─▶ Google Direct API
-                                     │             (gemini-2.0-flash-exp ❌)
-                                     │
-                                     └─ sem key ─▶ Lovable AI Gateway
-                                                   (gemini-3.1-flash-image-preview ✅)
-```
-
-Se você quiser, posso apresentar um plano para corrigir: mover a key para o backend como secret, trocar o modelo do caminho direto para um válido (ex: `gemini-2.5-flash-image-preview` ou `gemini-3.0-pro-image-preview`) e remover a UI da Sidebar.
-
+After approval I'll: connect Resend → migration → edge functions → wire triggers → admin UI.
