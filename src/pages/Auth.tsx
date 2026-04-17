@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { useTheme } from "@/lib/theme";
 import { Sun, Moon, Check, Sparkles, Bot, Layers, Zap, ShieldCheck, TrendingUp } from "lucide-react";
+import { TestimonialCarousel } from "@/components/TestimonialCarousel";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -212,6 +213,9 @@ export default function Auth() {
                 </div>
               ))}
             </div>
+
+            {/* Auto-rotating testimonials */}
+            <TestimonialCarousel />
           </div>
 
           <style>{`
