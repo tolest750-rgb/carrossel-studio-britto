@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { Sparkles, User, Phone } from "lucide-react";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const schema = z.object({
   display_name: z
@@ -193,6 +194,9 @@ export default function Welcome() {
         <p className="text-center text-[10px] font-mono tracking-wider text-muted-foreground mt-4">
           Seus dados ficam protegidos · Usados só pra suporte
         </p>
+      </div>
+      <div className="absolute bottom-0 left-0 right-0">
+        <SiteFooter />
       </div>
     </main>
   );

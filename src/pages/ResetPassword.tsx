@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { SiteFooter } from "@/components/SiteFooter";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -44,7 +45,8 @@ export default function ResetPassword() {
   if (!ready) return null;
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center p-4">
+    <main className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-popover border border-border2 rounded-md p-6">
         <h2 className="font-mono text-sm tracking-[2px] uppercase text-foreground mb-4">
           Nova senha
@@ -67,6 +69,8 @@ export default function ResetPassword() {
           </button>
         </form>
       </div>
+      </div>
+      <SiteFooter />
     </main>
   );
 }

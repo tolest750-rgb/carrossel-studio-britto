@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { OutputPanel } from "@/components/OutputPanel";
 import { Lightbox } from "@/components/Lightbox";
 import { CarouselProvider } from "@/lib/carousel-store";
+import { SiteFooter } from "@/components/SiteFooter";
 
 function CarouselStudio() {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
@@ -45,6 +46,7 @@ function CarouselStudio() {
         </div>
       </div>
       <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      <SiteFooter />
     </CarouselProvider>
   );
 }

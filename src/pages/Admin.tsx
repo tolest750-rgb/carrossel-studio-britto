@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { supabase } from "@/integrations/supabase/client";
 import { Shield, Users, CheckCircle2, XCircle, RefreshCw, AlertTriangle, DollarSign } from "lucide-react";
+import { SiteFooter } from "@/components/SiteFooter";
 
 interface UserRow {
   user_id: string;
@@ -250,6 +251,7 @@ export default function Admin() {
           </div>
         </div>
       </main>
+      <SiteFooter />
     </>
   );
 }
