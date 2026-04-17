@@ -76,11 +76,11 @@ export default function Auth() {
     setBusy(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/account`,
+        redirect_uri: `${window.location.origin}/welcome`,
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
-      navigate("/account", { replace: true });
+      navigate("/welcome", { replace: true });
     } catch (err: any) {
       toast({ title: "Erro no login Google", description: err.message || "Tente novamente", variant: "destructive" });
       setBusy(false);
@@ -148,8 +148,7 @@ export default function Auth() {
             </h1>
 
             <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mb-5 sm:mb-6 leading-relaxed max-w-lg">
-              Carrosséis cinematográficos em <span className="text-primary font-semibold">4K</span> com
-              IA Gemini Nano Banana Pro. Cole o roteiro, gere em <span className="text-foreground font-semibold">90 segundos</span>.
+              Carrosséis virais e cinematográficos em minutos. Conteúdo e <span className="text-primary font-semibold">autoridade digital</span> sem complicações.
             </p>
 
             {/* Floating 3D carousel mockup — desktop only (estoura no mobile) */}
@@ -205,7 +204,7 @@ export default function Auth() {
               {[
                 { v: "10K+", l: "Carrosséis" },
                 { v: "90s", l: "Por roteiro" },
-                { v: "4K", l: "Resolução" },
+                { v: "+200%", l: "Engajamento" },
               ].map((s) => (
                 <div key={s.l} className="border border-border2 bg-card/40 backdrop-blur-sm rounded-sm p-2 sm:p-2.5 text-center">
                   <div className="font-black text-base sm:text-lg lg:text-xl text-primary leading-none"
