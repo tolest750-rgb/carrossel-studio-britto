@@ -69,6 +69,7 @@ export default function ResetPassword() {
           </button>
         </form>
       </div>
+      </div>
       <SiteFooter />
     </main>
   );
