@@ -167,6 +167,7 @@ export type Database = {
           google_api_key_encrypted: string | null
           google_api_key_nonce: string | null
           id: string
+          phone: string | null
           selected_model: string | null
           updated_at: string
           user_id: string
@@ -178,6 +179,7 @@ export type Database = {
           google_api_key_encrypted?: string | null
           google_api_key_nonce?: string | null
           id?: string
+          phone?: string | null
           selected_model?: string | null
           updated_at?: string
           user_id: string
@@ -189,6 +191,7 @@ export type Database = {
           google_api_key_encrypted?: string | null
           google_api_key_nonce?: string | null
           id?: string
+          phone?: string | null
           selected_model?: string | null
           updated_at?: string
           user_id?: string
