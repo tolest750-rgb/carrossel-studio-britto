@@ -80,9 +80,9 @@ export default function Auth() {
         {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
 
-      <div className="grid lg:grid-cols-[1.1fr_1fr] h-full overflow-y-auto lg:overflow-hidden">
-        {/* LEFT: Futuristic Sales — hidden on small screens to keep mobile clean */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-background via-card to-background border-r border-border2 hidden lg:flex items-center justify-center p-6 lg:p-10">
+      <div className="grid lg:grid-cols-[1.1fr_1fr] min-h-screen lg:h-full overflow-y-auto lg:overflow-hidden">
+        {/* LEFT: Futuristic Sales — compact on mobile, full on desktop */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-background via-card to-background lg:border-r border-b lg:border-b-0 border-border2 flex items-center justify-center px-5 py-8 sm:p-8 lg:p-10">
           {/* Animated grid background */}
           <div className="absolute inset-0 pointer-events-none opacity-[0.06]"
             style={{
@@ -120,8 +120,8 @@ export default function Auth() {
             </div>
 
             {/* Headline */}
-            <h1 className="font-logo font-black tracking-tight text-foreground mb-4 leading-[0.95]"
-              style={{ fontSize: "clamp(2.4rem, 5.5vw, 4.4rem)" }}>
+            <h1 className="font-logo font-black tracking-tight text-foreground mb-3 sm:mb-4 leading-[0.95]"
+              style={{ fontSize: "clamp(1.9rem, 7vw, 4.4rem)" }}>
               MÁQUINA<br />
               <span className="relative inline-block text-primary"
                 style={{ textShadow: "0 0 40px hsl(var(--primary)/0.6), 0 0 80px hsl(var(--primary)/0.3)" }}>
@@ -130,13 +130,13 @@ export default function Auth() {
               </span>
             </h1>
 
-            <p className="text-sm lg:text-base text-muted-foreground mb-6 leading-relaxed max-w-lg">
+            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mb-5 sm:mb-6 leading-relaxed max-w-lg">
               Carrosséis cinematográficos em <span className="text-primary font-semibold">4K</span> com
               IA Gemini Nano Banana Pro. Cole o roteiro, gere em <span className="text-foreground font-semibold">90 segundos</span>.
             </p>
 
-            {/* Floating 3D carousel mockup */}
-            <div className="relative h-[180px] lg:h-[200px] mb-6 perspective-[1000px]">
+            {/* Floating 3D carousel mockup — desktop only (estoura no mobile) */}
+            <div className="relative h-[180px] lg:h-[200px] mb-6 perspective-[1000px] hidden md:block">
               {[
                 { rot: -18, x: 0, z: 0, opacity: 0.55, scale: 0.85 },
                 { rot: -8, x: 70, z: 30, opacity: 0.8, scale: 0.92 },
@@ -166,17 +166,34 @@ export default function Auth() {
               ))}
             </div>
 
+            {/* Mobile mockup — single tilted card preview */}
+            <div className="md:hidden flex justify-center mb-5">
+              <div className="relative w-[150px] h-[200px] rounded-md border border-primary/30 bg-gradient-to-br from-card to-background shadow-[0_10px_40px_hsl(var(--primary)/0.25)] overflow-hidden -rotate-3">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/20" />
+                <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
+                  <div className="font-mono text-[8px] text-primary tracking-wider">SLIDE 1/5</div>
+                  <Sparkles className="w-3 h-3 text-primary" />
+                </div>
+                <div className="absolute bottom-3 left-3 right-3">
+                  <div className="h-2 rounded-sm bg-primary/50 mb-1.5 w-3/4" />
+                  <div className="h-1 rounded-sm bg-foreground/30 mb-1 w-full" />
+                  <div className="h-1 rounded-sm bg-foreground/30 w-2/3" />
+                </div>
+                <div className="absolute inset-0 ring-1 ring-inset ring-primary/15" />
+              </div>
+            </div>
+
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5 sm:mb-6">
               {[
                 { v: "10K+", l: "Carrosséis" },
                 { v: "90s", l: "Por roteiro" },
                 { v: "4K", l: "Resolução" },
               ].map((s) => (
-                <div key={s.l} className="border border-border2 bg-card/40 backdrop-blur-sm rounded-sm p-2.5 text-center">
-                  <div className="font-black text-lg lg:text-xl text-primary leading-none"
+                <div key={s.l} className="border border-border2 bg-card/40 backdrop-blur-sm rounded-sm p-2 sm:p-2.5 text-center">
+                  <div className="font-black text-base sm:text-lg lg:text-xl text-primary leading-none"
                     style={{ textShadow: "0 0 12px hsl(var(--primary)/0.5)" }}>{s.v}</div>
-                  <div className="font-mono text-[9px] tracking-[1.5px] uppercase text-muted-foreground mt-1">{s.l}</div>
+                  <div className="font-mono text-[8px] sm:text-[9px] tracking-[1.5px] uppercase text-muted-foreground mt-1">{s.l}</div>
                 </div>
               ))}
             </div>
@@ -189,9 +206,9 @@ export default function Auth() {
                 { icon: Zap, label: "Sem Photoshop" },
                 { icon: ShieldCheck, label: "Stripe seguro" },
               ].map((b) => (
-                <div key={b.label} className="flex items-center gap-2 px-2.5 py-1.5 border border-border2 rounded-sm bg-card/30">
+                <div key={b.label} className="flex items-center gap-2 px-2 sm:px-2.5 py-1.5 border border-border2 rounded-sm bg-card/30">
                   <b.icon className="w-3 h-3 text-primary shrink-0" />
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-foreground/80">{b.label}</span>
+                  <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider text-foreground/80 truncate">{b.label}</span>
                 </div>
               ))}
             </div>
@@ -206,7 +223,7 @@ export default function Auth() {
         </section>
 
         {/* RIGHT: Auth form */}
-        <section className="flex items-center justify-center p-4 sm:p-6 lg:p-10 min-h-screen lg:min-h-0 lg:overflow-y-auto animate-fade-in-up">
+        <section className="flex items-center justify-center p-4 sm:p-6 lg:p-10 lg:overflow-y-auto animate-fade-in-up">
           <div className="w-full max-w-sm">
             {/* Logo */}
             <div className="mb-6 text-center">
