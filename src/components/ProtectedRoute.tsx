@@ -7,32 +7,37 @@ import { supabase } from "@/integrations/supabase/client";
 function FullscreenLoader({ label = "CARREGANDO..." }: { label?: string }) {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="font-mono text-xs text-muted-foreground tracking-[2px]">{label}</div>
+      <div className="font-mono text-xs text-muted-foreground tracking-[2px] animate-pulse">{label}</div>
     </div>
   );
 }
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) return <FullscreenLoader />;
+  const { user, ready } = useAuth();
+  if (!ready) return <FullscreenLoader />;
   if (!user) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 }
 
 /** Blocks access to the studio when subscription is inactive — sends to /account. */
 export function RequireSubscription({ children }: { children: React.ReactNode }) {
+  const { ready } = useAuth();
   const { active, loading } = useSubscription();
-  if (loading || active === null) return <FullscreenLoader label="VERIFICANDO ASSINATURA..." />;
+  if (!ready || loading || active === null) return <FullscreenLoader label="VERIFICANDO ASSINATURA..." />;
   if (!active) return <Navigate to="/account" replace />;
   return <>{children}</>;
 }
 
 export function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, ready } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!user) { setIsAdmin(false); return; }
+    if (!ready) return;
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
     (async () => {
       const { data } = await supabase
         .from("user_roles")
@@ -42,9 +47,9 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
         .maybeSingle();
       setIsAdmin(!!data);
     })();
-  }, [user]);
+  }, [user, ready]);
 
-  if (loading || isAdmin === null) return <FullscreenLoader label="VERIFICANDO PERMISSÕES..." />;
+  if (!ready || isAdmin === null) return <FullscreenLoader label="VERIFICANDO PERMISSÕES..." />;
   if (!user) return <Navigate to="/auth" replace />;
   if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;

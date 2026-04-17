@@ -3,11 +3,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./use-auth";
 
 export function useSubscription() {
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
   const [active, setActive] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Wait until auth is fully restored before deciding anything.
+    if (!ready) {
+      setLoading(true);
+      setActive(null);
+      return;
+    }
     if (!user) {
       setActive(false);
       setLoading(false);
@@ -43,7 +49,7 @@ export function useSubscription() {
     load();
 
     const channel = supabase
-      .channel("sub-changes")
+      .channel(`sub-changes-${user.id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
@@ -55,7 +61,7 @@ export function useSubscription() {
       mounted = false;
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, ready]);
 
-  return { active, loading };
+  return { active, loading: loading || !ready };
 }
