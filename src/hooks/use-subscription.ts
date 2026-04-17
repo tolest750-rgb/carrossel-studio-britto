@@ -48,8 +48,11 @@ export function useSubscription() {
     };
     load();
 
+    const channelName = `sub-changes-${user.id}`;
+    supabase.removeChannel(supabase.channel(channelName));
+
     const channel = supabase
-      .channel(`sub-changes-${user.id}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
