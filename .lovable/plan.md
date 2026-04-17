@@ -1,64 +1,64 @@
 
-Objetivo: corrigir o fluxo em que o acesso à plataforma acaba em `/account` e fica numa tela preta.
+Objetivo: eliminar a tela preta em `/account` e deixar a rota resiliente tanto no preview quanto no site publicado.
 
-Diagnóstico do que encontrei:
-- O redirecionamento para `/account` acontece hoje por dois caminhos válidos no código:
-  1. `/` usa `RequireSubscription` e manda para `/account` quando a assinatura não está ativa.
-  2. `/auth` manda usuários logados para `/welcome`, e `/welcome` manda para `/account` quando nome + telefone já existem.
-- O ponto frágil é o estado de autenticação e assinatura estar espalhado em vários hooks independentes:
-  - `ProtectedRoute` chama `useAuth()`
-  - `Account` chama `useAuth()`
-  - `useSubscription()` chama outro `useAuth()`
-  - `Navbar` chama `useSubscription()` de novo
-- Isso cria risco de corrida na restauração da sessão e loaders em tela cheia que podem ficar travados no `/account`.
-- Há também um warning no `/auth` envolvendo `SiteFooter`, que não parece ser a causa principal da tela preta, mas vale limpar depois.
+Diagnóstico mais provável:
+- O ponto mais suspeito está em `src/pages/Account.tsx`:
+  - `loadStripe(clientToken)` roda no topo do módulo, antes do componente renderizar.
+  - O repositório tem `.env.development` com `VITE_PAYMENTS_CLIENT_TOKEN`, mas não há `.env.production` visível.
+  - Em build publicado/custom domain, se esse token vier vazio ou inválido, a página pode quebrar antes de montar qualquer UI, gerando exatamente a “tela preta”.
+- Há fragilidades secundárias no `/account`:
+  - `subLoading` e `accountDataLoaded` praticamente não protegem a renderização.
+  - `reload()` consulta `subscriptions` com `maybeSingle()`, o que pode falhar se existirem múltiplas linhas por usuário em ambientes diferentes.
+  - A página depende de vários estados assíncronos, mas sem um fallback explícito por bloco.
+- O warning do `SiteFooter` existe, mas não parece ser a causa principal da tela preta.
 
-Plano de implementação:
-1. Centralizar a autenticação
-- Transformar o estado de auth em uma fonte única e estável (provider/context ou um hook compartilhado com “auth ready”).
-- Garantir a ordem correta: restaurar sessão primeiro, depois reagir às mudanças.
-- Evitar múltiplos listeners independentes competindo entre páginas e componentes.
+Plano de correção:
+1. Blindar a inicialização do checkout
+- Tirar `loadStripe(...)` do topo do arquivo.
+- Criar uma inicialização lazy e segura dentro de um util ou `useMemo`.
+- Se o token não existir, não tentar montar o checkout.
+- Exibir um card de erro controlado na aba de pagamento, sem derrubar a página inteira.
 
-2. Blindar os redirecionamentos
-- Atualizar `ProtectedRoute`, `RequireSubscription`, `Auth`, `Welcome` e `Account` para só redirecionarem depois que a autenticação estiver realmente pronta.
-- Remover qualquer navegação prematura enquanto o estado ainda estiver “indefinido”.
-- Manter o comportamento esperado:
-  - usuário sem login → `/auth`
-  - usuário logado sem onboarding completo → `/welcome`
-  - usuário logado sem assinatura ativa → `/account`
-  - usuário logado com assinatura ativa → `/`
+2. Tornar `/account` seguro para falhas parciais
+- Separar claramente:
+  - autenticação pronta
+  - carregamento de assinatura
+  - carregamento de perfil/dados da conta
+- Renderizar o shell da página mesmo se a consulta falhar.
+- Mostrar estados de erro/carregamento localizados em vez de deixar a rota inteira depender de um único fluxo.
 
-3. Tornar o `/account` resiliente
-- Separar “carregando sessão” de “carregando dados da conta”.
-- Fazer `reload()` de perfil/assinatura com `try/catch/finally` e fallback visual, para não deixar a tela inteira dependente de uma requisição silenciosamente falha.
-- Evitar bloquear a página inteira quando apenas um bloco interno estiver carregando.
+3. Corrigir a leitura da assinatura
+- Ajustar a consulta da assinatura para não depender de um `maybeSingle()` frágil se houver mais de um registro por ambiente.
+- Preferir filtrar explicitamente pelo ambiente atual ou selecionar a assinatura mais relevante.
+- Sincronizar `useSubscription()` e `Account.tsx` para usarem a mesma lógica de “assinatura ativa”.
 
-4. Reduzir consultas duplicadas
-- Fazer `useSubscription` depender do auth centralizado em vez de abrir outro `useAuth()`.
-- Ajustar `Navbar` e demais consumidores para reutilizar o mesmo estado já resolvido.
+4. Limpar redirecionamentos e estados mortos
+- Remover/imports e estados não usados no `/account` (ex.: `Link`, `subLoading`, ou loading morto se confirmado).
+- Garantir que redirecionamento para `/auth` só aconteça após `ready`.
+- Evitar qualquer transição que esconda o conteúdo enquanto dados secundários ainda carregam.
 
-5. Corrigir o warning secundário
-- Revisar o uso de `SiteFooter` no `/auth` e a composição ao redor dele para remover o warning de `ref`.
-- Isso não é o foco principal do bug, mas ajuda a eliminar ruído de depuração.
+5. Corrigir o warning secundário do rodapé
+- Revisar como `SiteFooter` está sendo usado na `Auth`.
+- Ajustar a composição para eliminar o warning de `ref`, reduzindo ruído de depuração.
 
-Validação depois da correção:
-- Entrar com usuário sem assinatura e confirmar:
+Arquivos a ajustar:
+- `src/pages/Account.tsx`
+- `src/hooks/use-subscription.ts`
+- possivelmente `src/lib/stripe.ts` (novo util compartilhado, se eu extrair a lógica)
+- `src/pages/Auth.tsx` e/ou `src/components/SiteFooter.tsx` para o warning secundário
+
+Validação após a correção:
+- Usuário logado sem assinatura:
   - `/` redireciona para `/account`
   - `/account` abre normalmente, sem tela preta
-- Entrar com usuário com perfil incompleto e confirmar:
-  - `/auth` → `/welcome`
-  - salvar dados → `/account`
-- Entrar com usuário com assinatura ativa e confirmar:
-  - `/` abre o estúdio direto
-- Testar desktop e mobile, especialmente no fluxo atual do usuário.
+- Usuário logado com assinatura ativa:
+  - `/account` abre
+  - aba de pagamento funciona sem crash
+- Build publicado/custom domain:
+  - `/account` não quebra mesmo se o token de pagamento estiver ausente
+- Conferir também reload direto em `/account`.
 
 Detalhes técnicos:
-- Arquivos mais prováveis de ajuste:
-  - `src/hooks/use-auth.ts`
-  - `src/hooks/use-subscription.ts`
-  - `src/components/ProtectedRoute.tsx`
-  - `src/pages/Auth.tsx`
-  - `src/pages/Welcome.tsx`
-  - `src/pages/Account.tsx`
-  - possivelmente `src/components/Navbar.tsx`
-- Não deve exigir mudança de banco; o problema parece ser de sincronização de sessão/roteamento no cliente.
+- A principal mudança será transformar a integração de pagamento em “fail-safe”.
+- A página não deve depender de configuração de pagamento para renderizar dados da conta.
+- Se faltar configuração, somente o bloco de checkout fica indisponível — não a rota inteira.
