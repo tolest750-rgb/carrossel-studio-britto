@@ -348,6 +348,7 @@ export default function Auth() {
           </div>
         </section>
       </div>
+      <SiteFooter />
     </main>
   );
 }
