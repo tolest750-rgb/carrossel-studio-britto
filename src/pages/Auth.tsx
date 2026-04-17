@@ -80,9 +80,9 @@ export default function Auth() {
         {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
 
-      <div className="grid lg:grid-cols-[1.1fr_1fr] h-full">
-        {/* LEFT: Futuristic Sales */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-background via-card to-background border-r border-border2 flex items-center justify-center p-6 lg:p-10">
+      <div className="grid lg:grid-cols-[1.1fr_1fr] h-full overflow-y-auto lg:overflow-hidden">
+        {/* LEFT: Futuristic Sales — hidden on small screens to keep mobile clean */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-background via-card to-background border-r border-border2 hidden lg:flex items-center justify-center p-6 lg:p-10">
           {/* Animated grid background */}
           <div className="absolute inset-0 pointer-events-none opacity-[0.06]"
             style={{
@@ -206,7 +206,7 @@ export default function Auth() {
         </section>
 
         {/* RIGHT: Auth form */}
-        <section className="flex items-center justify-center p-6 lg:p-10 overflow-y-auto">
+        <section className="flex items-center justify-center p-4 sm:p-6 lg:p-10 min-h-screen lg:min-h-0 lg:overflow-y-auto animate-fade-in-up">
           <div className="w-full max-w-sm">
             {/* Logo */}
             <div className="mb-6 text-center">

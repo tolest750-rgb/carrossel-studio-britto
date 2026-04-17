@@ -206,36 +206,36 @@ export default function Account() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-background pt-[80px] pb-12 px-4">
+      <main className="min-h-screen bg-background pt-[76px] pb-12 px-3 sm:px-4 animate-fade-in">
         <div className="max-w-5xl mx-auto">
           {/* Profile header */}
-          <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="font-logo text-2xl lg:text-3xl font-black tracking-[2px] text-foreground">
+          <div className="mb-6 sm:mb-8 flex items-start justify-between flex-wrap gap-3 animate-fade-in-up">
+            <div className="min-w-0">
+              <h1 className="font-logo text-xl sm:text-2xl lg:text-3xl font-black tracking-[2px] text-foreground">
                 Minha Conta
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1 break-all">{user.email}</p>
               <p className="text-[11px] font-mono text-muted-foreground tracking-wider mt-0.5">
                 {profile?.display_name || "—"}
               </p>
             </div>
-            <div className={`px-4 py-2 rounded-sm border ${
+            <div className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-sm border ${
               active ? "border-primary bg-primary/10 text-primary"
                 : "border-destructive bg-destructive/10 text-destructive"
             }`}>
-              <div className="font-mono text-[10px] tracking-[2px] uppercase">Status</div>
-              <div className="font-mono text-xs font-bold mt-0.5">
+              <div className="font-mono text-[9px] sm:text-[10px] tracking-[2px] uppercase">Status</div>
+              <div className="font-mono text-[11px] sm:text-xs font-bold mt-0.5 whitespace-nowrap">
                 {active ? `★ ATIVO · ${(subInfo?.plan_type || "").toUpperCase() || "PRO"}` : "★ BLOQUEADO"}
               </div>
             </div>
           </div>
 
           {isLocked && (
-            <div className="mb-8 p-5 border-2 border-destructive bg-destructive/10 rounded-sm flex items-start gap-3">
+            <div className="mb-6 sm:mb-8 p-4 sm:p-5 border-2 border-destructive bg-destructive/10 rounded-sm flex items-start gap-3 animate-scale-in">
               <Lock className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
               <div>
-                <div className="font-mono text-sm tracking-[2px] uppercase text-destructive">PLATAFORMA BLOQUEADA</div>
-                <p className="text-sm text-foreground mt-1">
+                <div className="font-mono text-xs sm:text-sm tracking-[2px] uppercase text-destructive">PLATAFORMA BLOQUEADA</div>
+                <p className="text-xs sm:text-sm text-foreground mt-1">
                   Você ainda não comprou o acesso. Escolha um plano abaixo e cadastre seu cartão pra liberar o estúdio.
                 </p>
               </div>
@@ -243,14 +243,14 @@ export default function Account() {
           )}
 
           {/* Tabs */}
-          <div className="flex border-b border-border2 mb-6">
+          <div className="flex border-b border-border2 mb-6 overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
             {([
               { k: "plan", label: "Plano & Pagamento" },
               { k: "password", label: "Trocar Senha" },
               { k: "apikey", label: "Google API Key" },
             ] as const).map(({ k, label }) => (
               <button key={k} onClick={() => setTab(k)}
-                className={`px-4 py-3 font-mono text-[10px] tracking-[2px] uppercase border-b-2 transition ${
+                className={`px-3 sm:px-4 py-3 font-mono text-[10px] tracking-[2px] uppercase border-b-2 transition whitespace-nowrap shrink-0 ${
                   tab === k
                     ? "text-primary border-primary"
                     : "text-muted-foreground border-transparent hover:text-foreground"

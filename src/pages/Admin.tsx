@@ -73,16 +73,16 @@ export default function Admin() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-background pt-[80px] pb-12 px-4">
+      <main className="min-h-screen bg-background pt-[76px] pb-12 px-3 sm:px-4 animate-fade-in">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <Shield className="w-6 h-6 text-accent" />
-              <div>
-                <h1 className="font-logo text-2xl lg:text-3xl font-black tracking-[2px] text-foreground">
+          <div className="flex items-center justify-between mb-6 sm:mb-8 flex-wrap gap-3 animate-fade-in-up">
+            <div className="flex items-center gap-3 min-w-0">
+              <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-accent shrink-0" />
+              <div className="min-w-0">
+                <h1 className="font-logo text-xl sm:text-2xl lg:text-3xl font-black tracking-[2px] text-foreground">
                   Painel Admin
                 </h1>
-                <p className="text-xs text-muted-foreground">Captura de cadastros e status de assinaturas</p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground">Captura de cadastros e status de assinaturas</p>
               </div>
             </div>
             <button onClick={load} className="font-mono text-[10px] tracking-[2px] uppercase border border-border2 px-3 py-2 rounded-sm hover:border-primary hover:text-primary transition flex items-center gap-1.5">
@@ -91,10 +91,10 @@ export default function Admin() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-6 sm:mb-8">
             <Stat icon={Users} label="Cadastros" value={stats.total} />
             <Stat icon={CheckCircle2} label="Assinaturas ativas" value={stats.active} color="text-primary" />
-            <Stat icon={AlertTriangle} label="Cancelamentos agendados" value={stats.canceledScheduled} color="text-warning" />
+            <Stat icon={AlertTriangle} label="Cancel. agendados" value={stats.canceledScheduled} color="text-warning" />
             <Stat icon={DollarSign} label="Multas pagas" value={`R$ ${(stats.feesPaid / 100).toFixed(2)}`} color="text-accent" />
           </div>
 
