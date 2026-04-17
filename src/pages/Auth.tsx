@@ -76,11 +76,11 @@ export default function Auth() {
     setBusy(true);
     try {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}/account`,
+        redirect_uri: `${window.location.origin}/welcome`,
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
-      navigate("/account", { replace: true });
+      navigate("/welcome", { replace: true });
     } catch (err: any) {
       toast({ title: "Erro no login Google", description: err.message || "Tente novamente", variant: "destructive" });
       setBusy(false);
@@ -148,8 +148,7 @@ export default function Auth() {
             </h1>
 
             <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mb-5 sm:mb-6 leading-relaxed max-w-lg">
-              Carrosséis cinematográficos em <span className="text-primary font-semibold">4K</span> com
-              IA Gemini Nano Banana Pro. Cole o roteiro, gere em <span className="text-foreground font-semibold">90 segundos</span>.
+              Carrosséis virais e cinematográficos em minutos. Conteúdo e <span className="text-primary font-semibold">autoridade digital</span> sem complicações.
             </p>
 
             {/* Floating 3D carousel mockup — desktop only (estoura no mobile) */}
@@ -205,7 +204,7 @@ export default function Auth() {
               {[
                 { v: "10K+", l: "Carrosséis" },
                 { v: "90s", l: "Por roteiro" },
-                { v: "4K", l: "Resolução" },
+                { v: "+200%", l: "Engajamento" },
               ].map((s) => (
                 <div key={s.l} className="border border-border2 bg-card/40 backdrop-blur-sm rounded-sm p-2 sm:p-2.5 text-center">
                   <div className="font-black text-base sm:text-lg lg:text-xl text-primary leading-none"
@@ -218,10 +217,10 @@ export default function Auth() {
             {/* Mini benefits */}
             <div className="grid grid-cols-2 gap-2">
               {[
-                { icon: Bot, label: "Gemini Pro" },
-                { icon: Layers, label: "4 variações" },
-                { icon: Zap, label: "Sem Photoshop" },
-                { icon: ShieldCheck, label: "Stripe seguro" },
+                { icon: Sparkles, label: "Visual cinematográfico" },
+                { icon: Layers, label: "4 variações por slide" },
+                { icon: Zap, label: "Pronto em minutos" },
+                { icon: TrendingUp, label: "Mais autoridade" },
               ].map((b) => (
                 <div key={b.label} className="flex items-center gap-2 px-2 sm:px-2.5 py-1.5 border border-border2 rounded-sm bg-card/30">
                   <b.icon className="w-3 h-3 text-primary shrink-0" />
@@ -336,13 +335,13 @@ export default function Auth() {
             {/* Trust badges */}
             <div className="mt-5 flex items-center justify-center gap-4 flex-wrap">
               <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
-                <Check className="w-3 h-3 text-primary" /> Stripe
+                <Check className="w-3 h-3 text-primary" /> Pagamento seguro
               </div>
               <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
                 <Check className="w-3 h-3 text-primary" /> Acesso imediato
               </div>
               <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground tracking-wider">
-                <TrendingUp className="w-3 h-3 text-primary" /> R$174/mês
+                <ShieldCheck className="w-3 h-3 text-primary" /> Cancele quando quiser
               </div>
             </div>
           </div>
