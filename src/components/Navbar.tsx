@@ -75,23 +75,25 @@ export function Navbar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
         {isAdmin && (
           <Link
             to="/admin"
-            className="font-mono text-[9px] tracking-[1px] uppercase px-2 py-1 rounded-sm border border-accent text-accent hover:bg-accent/10 flex items-center gap-1"
+            className="font-mono text-[9px] tracking-[1px] uppercase px-2 py-1 rounded-sm border border-accent text-accent hover:bg-accent/10 flex items-center gap-1 transition-all hover:scale-105"
+            title="Admin"
           >
-            <Shield className="w-3 h-3" /> Admin
+            <Shield className="w-3 h-3" /> <span className="hidden sm:inline">Admin</span>
           </Link>
         )}
         {user && (
           <Link
             to="/account"
-            className="font-mono text-[9px] tracking-[1px] uppercase px-2 py-1 rounded-sm border border-border2 hover:border-primary hover:text-primary transition flex items-center gap-1 text-muted-foreground"
+            className="font-mono text-[9px] tracking-[1px] uppercase px-2 py-1 rounded-sm border border-border2 hover:border-primary hover:text-primary transition-all hover:scale-105 flex items-center gap-1 text-muted-foreground"
+            title="Conta"
           >
-            <User className="w-3 h-3" /> Conta
+            <User className="w-3 h-3" /> <span className="hidden sm:inline">Conta</span>
           </Link>
         )}
         {user && (
           <button
             onClick={logout}
-            className="font-mono text-[9px] tracking-[1px] uppercase text-muted-foreground hover:text-destructive border border-border2 hover:border-destructive px-2 py-1 rounded-sm transition"
+            className="font-mono text-[9px] tracking-[1px] uppercase text-muted-foreground hover:text-destructive border border-border2 hover:border-destructive px-2 py-1 rounded-sm transition-all hover:scale-105"
           >
             Sair
           </button>
