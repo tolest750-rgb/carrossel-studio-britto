@@ -92,6 +92,14 @@ export default function Account() {
   }, [user]);
 
   const startCheckout = async (plan: "mensal" | "anual") => {
+    if (!isStripeConfigured) {
+      toast({
+        title: "Pagamento indisponível",
+        description: "Token do Stripe não configurado neste ambiente.",
+        variant: "destructive",
+      });
+      return;
+    }
     setBusy(true);
     setClientSecret(null);
     try {
@@ -444,6 +452,43 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between text-xs">
       <span className="font-mono text-[10px] tracking-[2px] uppercase text-muted-foreground">{label}</span>
       <span className="font-mono text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function CheckoutBlock({
+  clientSecret,
+  onBack,
+  onComplete,
+}: {
+  clientSecret: string;
+  onBack: () => void;
+  onComplete: () => void;
+}) {
+  const stripePromise = useMemo(() => getStripePromise(), []);
+
+  return (
+    <div>
+      <button
+        onClick={onBack}
+        className="mb-4 font-mono text-[10px] tracking-[2px] uppercase text-muted-foreground hover:text-primary"
+      >
+        ← Voltar
+      </button>
+      {!stripePromise ? (
+        <div className="p-4 border border-destructive bg-destructive/10 rounded-sm text-xs text-destructive font-mono">
+          Pagamento indisponível: token do Stripe não configurado.
+        </div>
+      ) : (
+        <div className="bg-popover border border-border2 rounded-md p-2">
+          <EmbeddedCheckoutProvider
+            stripe={stripePromise}
+            options={{ clientSecret, onComplete }}
+          >
+            <EmbeddedCheckout />
+          </EmbeddedCheckoutProvider>
+        </div>
+      )}
     </div>
   );
 }
