@@ -195,6 +195,9 @@ export default function Welcome() {
           Seus dados ficam protegidos · Usados só pra suporte
         </p>
       </div>
+      <div className="absolute bottom-0 left-0 right-0">
+        <SiteFooter />
+      </div>
     </main>
   );
 }
