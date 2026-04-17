@@ -46,6 +46,7 @@ function CarouselStudio() {
         </div>
       </div>
       <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      <SiteFooter />
     </CarouselProvider>
   );
 }
