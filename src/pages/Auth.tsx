@@ -89,18 +89,18 @@ export default function Auth() {
   };
 
   return (
-    <main className="min-h-screen lg:h-screen overflow-x-auto overflow-y-auto lg:overflow-hidden bg-background relative">
+    <main className="min-h-screen lg:h-screen lg:overflow-hidden bg-background relative flex flex-col">
       <button
         onClick={toggle}
-        className="absolute top-4 right-4 z-50 p-2 border border-border2 rounded-sm text-muted-foreground hover:text-primary hover:border-primary transition bg-background/60 backdrop-blur-sm"
+        className="absolute top-3 right-3 z-50 p-1.5 border border-border2 rounded-sm text-muted-foreground hover:text-primary hover:border-primary transition bg-background/60 backdrop-blur-sm"
         aria-label="Trocar tema"
       >
         {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
       </button>
 
-      <div className="grid lg:grid-cols-[1.1fr_1fr] min-h-screen lg:h-full overflow-y-auto lg:overflow-hidden">
+      <div className="grid lg:grid-cols-[1.05fr_1fr] flex-1 lg:min-h-0 lg:overflow-hidden">
         {/* LEFT: Futuristic Sales — compact on mobile, full on desktop */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-background via-card to-background lg:border-r border-b lg:border-b-0 border-border2 flex items-center justify-center px-5 py-8 sm:p-8 lg:p-10">
+        <section className="relative overflow-hidden bg-gradient-to-br from-background via-card to-background lg:border-r border-b lg:border-b-0 border-border2 flex items-center justify-center px-5 py-6 sm:p-6 lg:px-8 lg:py-6 lg:overflow-y-auto">
           {/* Animated grid background */}
           <div className="absolute inset-0 pointer-events-none opacity-[0.06]"
             style={{
