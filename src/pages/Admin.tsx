@@ -59,7 +59,7 @@ export default function Admin() {
 
   const actionLabel = (a: string) => ({
     signup: "Cadastro pago", renewal: "Renovação", upgrade: "Upgrade",
-    downgrade: "Downgrade", cancel: "Cancelamento",
+    downgrade: "Downgrade", cancel: "Cancelamento", payment_failed: "Falha cobrança",
   } as Record<string, string>)[a] || a;
   const actionColor = (a: string) => ({
     signup: "bg-primary/10 text-primary border-primary/30",
@@ -67,6 +67,7 @@ export default function Admin() {
     upgrade: "bg-accent/10 text-accent border-accent/30",
     downgrade: "bg-warning/10 text-warning border-warning/30",
     cancel: "bg-destructive/10 text-destructive border-destructive/30",
+    payment_failed: "bg-destructive/10 text-destructive border-destructive/30",
   } as Record<string, string>)[a] || "bg-card2 text-muted-foreground border-border2";
 
   return (

@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { type StripeEnv, verifyWebhook } from "../_shared/stripe.ts";
+import { type StripeEnv, createStripeClient, verifyWebhook } from "../_shared/stripe.ts";
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -128,6 +128,70 @@ serve(async (req) => {
           await supabase.from("cancellation_fees")
             .update({ status: "failed", updated_at: new Date().toISOString() })
             .eq("stripe_invoice_id", inv.id);
+        } else if (inv.subscription) {
+          try {
+            const userId = inv.subscription_details?.metadata?.userId
+              || inv.metadata?.userId
+              || null;
+            const planType = inv.subscription_details?.metadata?.planType
+              || inv.metadata?.planType
+              || null;
+            let email = inv.customer_email || null;
+            let name: string | null = null;
+            if (userId) {
+              const { data: prof } = await supabase
+                .from("profiles").select("display_name").eq("user_id", userId).maybeSingle();
+              name = prof?.display_name || null;
+              if (!email) {
+                const { data: u } = await supabase.auth.admin.getUserById(userId);
+                email = u?.user?.email || null;
+              }
+            }
+            // Generate Stripe Billing Portal link
+            let portalUrl: string | null = null;
+            try {
+              if (inv.customer) {
+                const stripe = createStripeClient(env);
+                const portal = await stripe.billingPortal.sessions.create({
+                  customer: inv.customer,
+                  return_url: "https://carrossel.brittogroup.com.br/account",
+                });
+                portalUrl = portal.url;
+              }
+            } catch (pe) {
+              console.error("portal session error", pe);
+            }
+            if (email) {
+              await supabase.functions.invoke("send-payment-failed-email", {
+                body: {
+                  email, name, planType,
+                  amountCents: inv.amount_due ?? inv.amount_remaining ?? null,
+                  currency: inv.currency,
+                  attemptCount: inv.attempt_count ?? null,
+                  nextAttempt: inv.next_payment_attempt
+                    ? new Date(inv.next_payment_attempt * 1000).toISOString()
+                    : null,
+                  portalUrl,
+                  hostedInvoiceUrl: inv.hosted_invoice_url || null,
+                },
+              });
+            }
+            if (userId) {
+              await supabase.from("plan_change_log").insert({
+                user_id: userId,
+                action: "payment_failed",
+                to_plan: planType,
+                amount_cents: inv.amount_due ?? null,
+                currency: inv.currency,
+                stripe_invoice_id: inv.id,
+                stripe_invoice_url: inv.hosted_invoice_url,
+                environment: env,
+                metadata: { attempt_count: inv.attempt_count ?? null },
+              });
+            }
+          } catch (e) {
+            console.error("invoice.payment_failed notify error", e);
+          }
         }
         console.log("Payment failed:", inv.id);
         break;
