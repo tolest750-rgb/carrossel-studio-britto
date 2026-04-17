@@ -70,6 +70,55 @@ serve(async (req) => {
           await supabase.from("cancellation_fees")
             .update({ status: "paid", updated_at: new Date().toISOString() })
             .eq("stripe_invoice_id", inv.id);
+        } else if (inv.subscription) {
+          // Subscription invoice paid → send receipt + log
+          try {
+            const userId = inv.subscription_details?.metadata?.userId
+              || inv.metadata?.userId
+              || null;
+            const planType = inv.subscription_details?.metadata?.planType
+              || inv.metadata?.planType
+              || null;
+            let email = inv.customer_email || null;
+            let name: string | null = null;
+            if (userId) {
+              const { data: prof } = await supabase
+                .from("profiles").select("display_name").eq("user_id", userId).maybeSingle();
+              name = prof?.display_name || null;
+              if (!email) {
+                const { data: u } = await supabase.auth.admin.getUserById(userId);
+                email = u?.user?.email || null;
+              }
+            }
+            if (email) {
+              await supabase.functions.invoke("send-purchase-receipt", {
+                body: {
+                  email, name, planType,
+                  amountCents: inv.amount_paid,
+                  currency: inv.currency,
+                  invoiceUrl: inv.hosted_invoice_url,
+                  invoicePdf: inv.invoice_pdf,
+                  periodEnd: inv.lines?.data?.[0]?.period?.end
+                    ? new Date(inv.lines.data[0].period.end * 1000).toISOString()
+                    : null,
+                },
+              });
+            }
+            if (userId) {
+              await supabase.from("plan_change_log").insert({
+                user_id: userId,
+                action: inv.billing_reason === "subscription_create" ? "signup" : "renewal",
+                to_plan: planType,
+                amount_cents: inv.amount_paid,
+                currency: inv.currency,
+                stripe_invoice_id: inv.id,
+                stripe_invoice_url: inv.hosted_invoice_url,
+                environment: env,
+              });
+            }
+          } catch (e) {
+            console.error("invoice.paid notify error", e);
+          }
         }
         break;
       }

@@ -111,6 +111,33 @@ serve(async (req) => {
       })
       .eq("id", sub.id);
 
+    // Log + notify (best-effort)
+    try {
+      await supabase.from("plan_change_log").insert({
+        user_id: user.id,
+        action: "cancel",
+        from_plan: planType,
+        amount_cents: feeAmount > 0 ? feeAmount : null,
+        currency: "brl",
+        stripe_invoice_id: invoice?.id ?? null,
+        environment: env,
+        metadata: { feeReason, accessUntil: sub.current_period_end },
+      });
+      const { data: prof } = await supabase
+        .from("profiles").select("display_name").eq("user_id", user.id).maybeSingle();
+      await supabase.functions.invoke("send-plan-change-email", {
+        body: {
+          email: user.email,
+          name: prof?.display_name || null,
+          action: "cancel",
+          fromPlan: planType,
+          accessUntil: sub.current_period_end,
+        },
+      });
+    } catch (e) {
+      console.error("cancel notify error", e);
+    }
+
     return ok({
       success: true,
       feeChargedCents: feeAmount,
