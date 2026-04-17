@@ -105,13 +105,40 @@ serve(async (req) => {
       })
       .eq("id", sub.id);
 
+    // Log + notify (best-effort)
+    const effectiveAt = isUpgrade
+      ? new Date().toISOString()
+      : (updated.current_period_end ? new Date(updated.current_period_end * 1000).toISOString() : null);
+    try {
+      await supabase.from("plan_change_log").insert({
+        user_id: user.id,
+        action: isUpgrade ? "upgrade" : "downgrade",
+        from_plan: currentPlan,
+        to_plan: targetPlan,
+        environment: env,
+        metadata: { effectiveAt },
+      });
+      const { data: prof } = await supabase
+        .from("profiles").select("display_name").eq("user_id", user.id).maybeSingle();
+      await supabase.functions.invoke("send-plan-change-email", {
+        body: {
+          email: user.email,
+          name: prof?.display_name || null,
+          action: isUpgrade ? "upgrade" : "downgrade",
+          fromPlan: currentPlan,
+          toPlan: targetPlan,
+          effectiveAt,
+        },
+      });
+    } catch (e) {
+      console.error("change-plan notify error", e);
+    }
+
     return ok({
       success: true,
       mode: isUpgrade ? "upgrade_immediate" : "downgrade_at_period_end",
       newPlan: targetPlan,
-      effectiveAt: isUpgrade
-        ? new Date().toISOString()
-        : (updated.current_period_end ? new Date(updated.current_period_end * 1000).toISOString() : null),
+      effectiveAt,
     });
   } catch (e) {
     console.error("change-plan error:", e);

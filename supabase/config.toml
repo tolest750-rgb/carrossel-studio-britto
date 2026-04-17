@@ -14,3 +14,12 @@ verify_jwt = false
 
 [functions.payments-webhook]
 verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = false
+
+[functions.send-purchase-receipt]
+verify_jwt = false
+
+[functions.send-plan-change-email]
+verify_jwt = false
