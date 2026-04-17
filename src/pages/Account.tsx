@@ -425,6 +425,7 @@ export default function Account() {
           )}
         </div>
       </main>
+      <SiteFooter />
     </>
   );
 }
