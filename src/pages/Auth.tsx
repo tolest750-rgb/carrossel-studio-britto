@@ -132,14 +132,14 @@ export default function Auth() {
 
           <div className="relative w-full max-w-xl">
             {/* Tag */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-5 border border-primary/40 bg-primary/5 rounded-sm backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 mb-3 border border-primary/40 bg-primary/5 rounded-sm backdrop-blur-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="font-mono text-[10px] tracking-[3px] uppercase text-primary">SISTEMA ONLINE · v3.1</span>
+              <span className="font-mono text-[9px] tracking-[3px] uppercase text-primary">SISTEMA ONLINE · v3.1</span>
             </div>
 
             {/* Headline */}
-            <h1 className="font-logo font-black tracking-tight text-foreground mb-3 sm:mb-4 leading-[0.95]"
-              style={{ fontSize: "clamp(1.9rem, 7vw, 4.4rem)" }}>
+            <h1 className="font-logo font-black tracking-tight text-foreground mb-2 sm:mb-3 leading-[0.95]"
+              style={{ fontSize: "clamp(1.7rem, 5.2vw, 3.4rem)" }}>
               MÁQUINA<br />
               <span className="relative inline-block text-primary"
                 style={{ textShadow: "0 0 40px hsl(var(--primary)/0.6), 0 0 80px hsl(var(--primary)/0.3)" }}>
@@ -148,21 +148,21 @@ export default function Auth() {
               </span>
             </h1>
 
-            <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mb-5 sm:mb-6 leading-relaxed max-w-lg">
+            <p className="text-xs sm:text-sm text-muted-foreground mb-4 leading-relaxed max-w-lg">
               Carrosséis virais e cinematográficos em minutos. Conteúdo e <span className="text-primary font-semibold">autoridade digital</span> sem complicações.
             </p>
 
             {/* Floating 3D carousel mockup — desktop only (estoura no mobile) */}
-            <div className="relative h-[180px] lg:h-[200px] mb-6 perspective-[1000px] hidden md:block">
+            <div className="relative h-[140px] lg:h-[150px] mb-4 perspective-[1000px] hidden md:block">
               {[
-                { rot: -18, x: 0, z: 0, opacity: 0.55, scale: 0.85 },
-                { rot: -8, x: 70, z: 30, opacity: 0.8, scale: 0.92 },
-                { rot: 0, x: 150, z: 60, opacity: 1, scale: 1 },
-                { rot: 8, x: 230, z: 30, opacity: 0.8, scale: 0.92 },
-                { rot: 18, x: 300, z: 0, opacity: 0.55, scale: 0.85 },
+                { rot: -18, x: 0, z: 0, opacity: 0.55, scale: 0.8 },
+                { rot: -8, x: 70, z: 30, opacity: 0.8, scale: 0.88 },
+                { rot: 0, x: 150, z: 60, opacity: 1, scale: 0.95 },
+                { rot: 8, x: 230, z: 30, opacity: 0.8, scale: 0.88 },
+                { rot: 18, x: 300, z: 0, opacity: 0.55, scale: 0.8 },
               ].map((card, i) => (
                 <div key={i}
-                  className="absolute top-1/2 left-1/2 w-[120px] h-[170px] rounded-md border border-primary/30 bg-gradient-to-br from-card to-background shadow-[0_10px_40px_hsl(var(--primary)/0.25)] overflow-hidden"
+                  className="absolute top-1/2 left-1/2 w-[100px] h-[140px] rounded-md border border-primary/30 bg-gradient-to-br from-card to-background shadow-[0_10px_40px_hsl(var(--primary)/0.25)] overflow-hidden"
                   style={{
                     transform: `translate(-50%, -50%) translateX(${card.x - 150}px) rotateY(${card.rot}deg) translateZ(${card.z}px) scale(${card.scale})`,
                     opacity: card.opacity,
@@ -184,8 +184,8 @@ export default function Auth() {
             </div>
 
             {/* Mobile mockup — single tilted card preview */}
-            <div className="md:hidden flex justify-center mb-5">
-              <div className="relative w-[150px] h-[200px] rounded-md border border-primary/30 bg-gradient-to-br from-card to-background shadow-[0_10px_40px_hsl(var(--primary)/0.25)] overflow-hidden -rotate-3">
+            <div className="md:hidden flex justify-center mb-4">
+              <div className="relative w-[130px] h-[170px] rounded-md border border-primary/30 bg-gradient-to-br from-card to-background shadow-[0_10px_40px_hsl(var(--primary)/0.25)] overflow-hidden -rotate-3">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-accent/20" />
                 <div className="absolute top-2 left-2 right-2 flex items-center justify-between">
                   <div className="font-mono text-[8px] text-primary tracking-wider">SLIDE 1/5</div>
@@ -201,14 +201,14 @@ export default function Auth() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5 sm:mb-6">
+            <div className="grid grid-cols-3 gap-2 mb-3">
               {[
                 { v: "10K+", l: "Carrosséis" },
                 { v: "90s", l: "Por roteiro" },
                 { v: "+200%", l: "Engajamento" },
               ].map((s) => (
-                <div key={s.l} className="border border-border2 bg-card/40 backdrop-blur-sm rounded-sm p-2 sm:p-2.5 text-center">
-                  <div className="font-black text-base sm:text-lg lg:text-xl text-primary leading-none"
+                <div key={s.l} className="border border-border2 bg-card/40 backdrop-blur-sm rounded-sm p-2 text-center">
+                  <div className="font-black text-base sm:text-lg text-primary leading-none"
                     style={{ textShadow: "0 0 12px hsl(var(--primary)/0.5)" }}>{s.v}</div>
                   <div className="font-mono text-[8px] sm:text-[9px] tracking-[1.5px] uppercase text-muted-foreground mt-1">{s.l}</div>
                 </div>
@@ -216,14 +216,14 @@ export default function Auth() {
             </div>
 
             {/* Mini benefits */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5 mb-3">
               {[
                 { icon: Sparkles, label: "Visual cinematográfico" },
                 { icon: Layers, label: "4 variações por slide" },
                 { icon: Zap, label: "Pronto em minutos" },
                 { icon: TrendingUp, label: "Mais autoridade" },
               ].map((b) => (
-                <div key={b.label} className="flex items-center gap-2 px-2 sm:px-2.5 py-1.5 border border-border2 rounded-sm bg-card/30">
+                <div key={b.label} className="flex items-center gap-2 px-2 py-1.5 border border-border2 rounded-sm bg-card/30">
                   <b.icon className="w-3 h-3 text-primary shrink-0" />
                   <span className="font-mono text-[9px] sm:text-[10px] uppercase tracking-wider text-foreground/80 truncate">{b.label}</span>
                 </div>
