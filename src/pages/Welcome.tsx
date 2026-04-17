@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "@/hooks/use-toast";
 import { Sparkles, User, Phone } from "lucide-react";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const schema = z.object({
   display_name: z
