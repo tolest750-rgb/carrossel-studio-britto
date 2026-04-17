@@ -23,36 +23,48 @@ const schema = z.object({
 
 export default function Welcome() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, ready } = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (loading) return;
+    if (!ready) return;
     if (!user) {
       navigate("/auth", { replace: true });
       return;
     }
+    let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("display_name, phone")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("display_name, phone")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (cancelled) return;
 
-      // If both already filled, skip onboarding
-      if (data?.display_name && data?.phone) {
-        navigate("/account", { replace: true });
-        return;
+        // If both already filled, skip onboarding
+        if (data?.display_name && data?.phone) {
+          navigate("/account", { replace: true });
+          return;
+        }
+        // Pre-fill what we have (e.g. Google display_name)
+        setName(data?.display_name ?? (user.user_metadata as any)?.full_name ?? "");
+        setPhone(data?.phone ?? "");
+      } catch (err) {
+        console.error("[Welcome] profile load failed:", err);
+        // Don't trap user — let them fill the form anyway
+        setName((user.user_metadata as any)?.full_name ?? "");
+      } finally {
+        if (!cancelled) setChecking(false);
       }
-      // Pre-fill what we have (e.g. Google display_name)
-      setName(data?.display_name ?? (user.user_metadata as any)?.full_name ?? "");
-      setPhone(data?.phone ?? "");
-      setChecking(false);
     })();
-  }, [user, loading, navigate]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, ready, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +101,7 @@ export default function Welcome() {
     }
   };
 
-  if (loading || checking) {
+  if (!ready || checking) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="font-mono text-xs text-muted-foreground tracking-[2px] animate-pulse">

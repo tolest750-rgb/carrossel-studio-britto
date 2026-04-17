@@ -38,8 +38,9 @@ const PLANS = [
 
 export default function Account() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, ready } = useAuth();
   const { active, loading: subLoading } = useSubscription();
+  const [accountDataLoaded, setAccountDataLoaded] = useState(false);
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -51,18 +52,29 @@ export default function Account() {
   const [pwdBusy, setPwdBusy] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth", { replace: true });
-  }, [user, authLoading, navigate]);
+    if (ready && !user) navigate("/auth", { replace: true });
+  }, [user, ready, navigate]);
 
   const reload = async () => {
     if (!user) return;
-    const { data: sub } = await supabase.from("subscriptions").select("*").eq("user_id", user.id).maybeSingle();
-    const { data: prof } = await supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
-    setSubInfo(sub);
-    setProfile(prof);
+    try {
+      const [{ data: sub }, { data: prof }] = await Promise.all([
+        supabase.from("subscriptions").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
+      ]);
+      setSubInfo(sub);
+      setProfile(prof);
+    } catch (e) {
+      console.error("[Account] reload failed:", e);
+    } finally {
+      setAccountDataLoaded(true);
+    }
   };
 
-  useEffect(() => { reload(); /* eslint-disable-next-line */ }, [user]);
+  useEffect(() => {
+    if (ready && user) reload();
+    /* eslint-disable-next-line */
+  }, [user, ready]);
 
   // Listen to realtime updates of subscription
   useEffect(() => {
@@ -192,7 +204,7 @@ export default function Account() {
     }
   };
 
-  if (authLoading || !user || subLoading) {
+  if (!ready || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="font-mono text-xs text-muted-foreground tracking-[2px] animate-pulse">

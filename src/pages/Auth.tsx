@@ -11,7 +11,7 @@ import { lovable } from "@/integrations/lovable";
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, ready } = useAuth();
   const { theme, toggle } = useTheme();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("signup");
   const [email, setEmail] = useState("");
@@ -20,11 +20,11 @@ export default function Auth() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate("/welcome", { replace: true });
-  }, [user, loading, navigate]);
+    if (ready && user) navigate("/welcome", { replace: true });
+  }, [user, ready, navigate]);
 
   // Avoid flashing the auth screen while we already know the user is logged in
-  if (!loading && user) {
+  if (ready && user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="font-mono text-xs text-muted-foreground tracking-[2px] animate-pulse">
