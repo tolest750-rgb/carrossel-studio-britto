@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { loadStripe } from "@stripe/stripe-js";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -10,10 +9,7 @@ import { Navbar } from "@/components/Navbar";
 import { ApiKeyManager } from "@/components/ApiKeyManager";
 import { Sparkles, ShieldAlert, KeyRound, ExternalLink, Lock, AlertTriangle, RefreshCw } from "lucide-react";
 import { SiteFooter } from "@/components/SiteFooter";
-
-const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN || "";
-const environment: "sandbox" | "live" = clientToken.startsWith("pk_test_") ? "sandbox" : "live";
-const stripePromise = loadStripe(clientToken);
+import { getStripePromise, isStripeConfigured, stripeEnvironment as environment } from "@/lib/stripe";
 
 const PLANS = [
   {
@@ -58,12 +54,19 @@ export default function Account() {
   const reload = async () => {
     if (!user) return;
     try {
-      const [{ data: sub }, { data: prof }] = await Promise.all([
-        supabase.from("subscriptions").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-      ]);
-      setSubInfo(sub);
-      setProfile(prof);
+      // Pick the most recent subscription row to be resilient to multiple env rows.
+      const subQ = supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      const profQ = supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle();
+      const [subRes, profRes] = await Promise.all([subQ, profQ]);
+      if (subRes.error) console.error("[Account] sub query error:", subRes.error);
+      if (profRes.error) console.error("[Account] profile query error:", profRes.error);
+      setSubInfo(subRes.data?.[0] ?? null);
+      setProfile(profRes.data ?? null);
     } catch (e) {
       console.error("[Account] reload failed:", e);
     } finally {
@@ -391,17 +394,11 @@ export default function Account() {
               )}
 
               {clientSecret && (
-                <div>
-                  <button onClick={() => setClientSecret(null)}
-                    className="mb-4 font-mono text-[10px] tracking-[2px] uppercase text-muted-foreground hover:text-primary">
-                    ← Voltar
-                  </button>
-                  <div className="bg-popover border border-border2 rounded-md p-2">
-                    <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret, onComplete: () => reload() }}>
-                      <EmbeddedCheckout />
-                    </EmbeddedCheckoutProvider>
-                  </div>
-                </div>
+                <CheckoutBlock
+                  clientSecret={clientSecret}
+                  onBack={() => setClientSecret(null)}
+                  onComplete={() => reload()}
+                />
               )}
             </div>
           )}
