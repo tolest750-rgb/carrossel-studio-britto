@@ -45,7 +45,8 @@ export default function ResetPassword() {
   if (!ready) return null;
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center p-4">
+    <main className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-popover border border-border2 rounded-md p-6">
         <h2 className="font-mono text-sm tracking-[2px] uppercase text-foreground mb-4">
           Nova senha
