@@ -35,13 +35,8 @@ export default function Auth() {
         });
         if (error) throw error;
         // Fire welcome email (best-effort, won't block UX)
-        supabase.functions.invoke("send-transactional-email", {
-          body: {
-            templateName: "welcome",
-            recipientEmail: email,
-            idempotencyKey: `welcome-${email}-${Date.now()}`,
-            templateData: { name: name || email.split("@")[0] },
-          },
+        supabase.functions.invoke("send-welcome-email", {
+          body: { email, name: name || email.split("@")[0] },
         }).catch(() => {});
         toast({ title: "Conta criada!", description: "Faça login pra escolher seu plano." });
         setMode("login");
