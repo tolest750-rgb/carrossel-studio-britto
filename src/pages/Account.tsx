@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { Navbar } from "@/components/Navbar";
 import { ApiKeyManager } from "@/components/ApiKeyManager";
 import { Sparkles, ShieldAlert, KeyRound, ExternalLink, Lock, AlertTriangle, RefreshCw } from "lucide-react";
+import { SiteFooter } from "@/components/SiteFooter";
 
 const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN || "";
 const environment: "sandbox" | "live" = clientToken.startsWith("pk_test_") ? "sandbox" : "live";
