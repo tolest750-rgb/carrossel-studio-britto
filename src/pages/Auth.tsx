@@ -19,7 +19,7 @@ export default function Auth() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate("/account", { replace: true });
+    if (!loading && user) navigate("/welcome", { replace: true });
   }, [user, loading, navigate]);
 
   // Avoid flashing the auth screen while we already know the user is logged in
