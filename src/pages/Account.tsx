@@ -191,7 +191,15 @@ export default function Account() {
     }
   };
 
-  if (authLoading || !user || subLoading) return null;
+  if (authLoading || !user || subLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="font-mono text-xs text-muted-foreground tracking-[2px] animate-pulse">
+          CARREGANDO CONTA...
+        </div>
+      </div>
+    );
+  }
 
   const isLocked = active === false;
 

@@ -20,6 +20,17 @@ export default function Auth() {
     if (!loading && user) navigate("/account", { replace: true });
   }, [user, loading, navigate]);
 
+  // Avoid flashing the auth screen while we already know the user is logged in
+  if (!loading && user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="font-mono text-xs text-muted-foreground tracking-[2px] animate-pulse">
+          REDIRECIONANDO...
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
