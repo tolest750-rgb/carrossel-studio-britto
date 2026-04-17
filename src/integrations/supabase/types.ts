@@ -114,6 +114,51 @@ export type Database = {
           },
         ]
       }
+      plan_change_log: {
+        Row: {
+          action: string
+          amount_cents: number | null
+          created_at: string
+          currency: string | null
+          environment: string
+          from_plan: string | null
+          id: string
+          metadata: Json | null
+          stripe_invoice_id: string | null
+          stripe_invoice_url: string | null
+          to_plan: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          environment?: string
+          from_plan?: string | null
+          id?: string
+          metadata?: Json | null
+          stripe_invoice_id?: string | null
+          stripe_invoice_url?: string | null
+          to_plan?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          environment?: string
+          from_plan?: string | null
+          id?: string
+          metadata?: Json | null
+          stripe_invoice_id?: string | null
+          stripe_invoice_url?: string | null
+          to_plan?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
